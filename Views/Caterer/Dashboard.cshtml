@@ -1,0 +1,154 @@
+@model List<project.Models.Order>
+@{
+    ViewData["Title"] = "Tedarikçi Paneli";
+}
+
+<div class="container-fluid mt-4">
+    <h2 class="mb-4"><i class="bi bi-shop"></i> Tedarikçi Paneli</h2>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-info text-white shadow h-100 border-0">
+                <div class="card-body">
+                    <h5 class="card-title">Toplam Sipariş</h5>
+                    <h2 class="fw-bold">@ViewBag.TotalOrders</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white shadow h-100 border-0">
+                <div class="card-body">
+                    <h5 class="card-title">Tamamlanan Siparişler</h5>
+                    <h2 class="fw-bold">@ViewBag.CompletedOrders</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-primary text-white shadow h-100 border-0">
+                <div class="card-body">
+                    <h5 class="card-title">Toplam Kazanç</h5>
+                    <h2 class="fw-bold">@ViewBag.TotalRevenue.ToString("C2")</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-dark text-white fw-bold py-3">
+            <i class="bi bi-list-task"></i> Sipariş Yönetim Listesi
+        </div>
+        <div class="card-body p-0">
+            @if (Model == null || Model.Count == 0)
+            {
+                <div class="p-5 text-center text-muted">Şu anda sistemde kayıtlı siparişiniz bulunmamaktadır.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Sipariş No</th>
+                            <th>Müşteri</th>
+                            <th>Tarih</th>
+                            <th>Tutar</th>
+                            <th>Mevcut Durum</th>
+                            <th>Durum Güncelle</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var order in Model)
+                        {
+                            // Siparişin bitmiş bir statüde olup olmadığını kontrol ediyoruz
+                            var isCompleted = order.Status == "Tamamlandı";
+                            var isCanceled = order.Status == "İptal Edildi";
+                            var isEnded = isCompleted || isCanceled;
+    
+                            // Duruma göre Bootstrap tablo satırı rengi (hafif yeşil veya hafif kırmızı)
+                            string rowClass = "";
+                            if (isCompleted) rowClass = "table-success text-muted";
+                            else if (isCanceled) rowClass = "table-danger text-muted";
+
+                            // Sipariş bittiyse silik (opak) yap
+                            var rowStyle = isEnded ? "opacity: 0.60; transition: opacity 0.3s;" : "";
+
+                            <tr class="@rowClass" style="@rowStyle">
+                                <td class="fw-bold">#@order.OrderId</td>
+                                <td>@order.User?.FullName</td>
+                                <td>@order.OrderDate?.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td class="fw-bold @(isEnded ? "text-secondary" : "text-success")">
+                                    @order.TotalAmount.ToString("C2")
+                                </td>
+                                <td>
+                                    @{
+                                        var badgeClass = order.Status switch
+                                        {
+                                            "Tamamlandı" => "bg-success",
+                                            "İptal Edildi" => "bg-danger",
+                                            "Hazırlanıyor" => "bg-warning text-dark",
+                                            "Yolda" => "bg-info text-dark",
+                                            _ => "bg-secondary"
+                                        };
+                                    }
+                                    <span class="badge @badgeClass fs-6 shadow-sm">
+                                        @order.Status
+                                    </span>
+                                </td>
+                                <td>
+                                    <form asp-action="UpdateOrderStatus" method="post" class="d-flex align-items-center gap-2">
+                                        <input type="hidden" name="orderId" value="@order.OrderId"/>
+
+                                        <select name="newStatus" class="form-select form-select-sm" style="width: 140px;">
+                                            <option value="Hazırlanıyor" selected="@(order.Status == "Hazırlanıyor" ? "selected" : null)">Hazırlanıyor</option>
+                                            <option value="Yolda" selected="@(order.Status == "Yolda" ? "selected" : null)">Yolda</option>
+                                            <option value="Tamamlandı" selected="@(order.Status == "Tamamlandı" ? "selected" : null)">Tamamlandı</option>
+                                            <option value="İptal Edildi" selected="@(order.Status == "İptal Edildi" ? "selected" : null)">İptal Edildi</option>
+                                        </select>
+
+                                        <button type="submit" class="btn btn-sm btn-primary shadow-sm">Uygula</button>
+        
+                                        @if (order.Status == "Tamamlandı")
+                                        {
+                                            <button type="button" onclick="openChatWidget(@order.OrderId)" class="btn btn-sm btn-info text-white fw-bold shadow-sm" title="Canlı Sohbet">
+                                                <i class="bi bi-chat-dots-fill"></i> Mesajlaş
+                                            </button>
+                                        }
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+<div id="chatWidgetContainer"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+
+@section Scripts {
+    <script>
+        function openChatWidget(orderId) {
+            // Zaten bir kutu açıksa yenisini yüklemeden önce eskisini siler
+            var existingWidget = document.getElementById("liveChatWidget");
+            if (existingWidget) existingWidget.remove();
+
+            // AJAX ile sohbet arayüzünü getirir ve sağ alta ekler
+            $.get("/Chat/LoadChatWidget?orderId=" + orderId, function (data) {
+                $("#chatWidgetContainer").html(data);
+            }).fail(function () {
+                alert("Sohbet bağlantısı kurulurken bir hata oluştu.");
+            });
+        }
+    </script>
+}

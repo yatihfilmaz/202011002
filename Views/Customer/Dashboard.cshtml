@@ -1,0 +1,221 @@
+@model List<project.Models.Order>
+@{
+    ViewData["Title"] = "Hesabım - Sipariş Geçmişi";
+}
+
+<div class="container mt-5">
+    <h2 class="mb-4"><i class="bi bi-person-circle"></i> Hesabım ve Siparişlerim</h2>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white shadow-sm h-100 border-0">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Toplam Siparişim</h5>
+                    <h2 class="fw-bold display-5">@ViewBag.TotalOrders</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white shadow-sm h-100 border-0">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Toplam Harcamam</h5>
+                    <h2 class="fw-bold display-5">@ViewBag.TotalSpent.ToString("C2")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white shadow-sm h-100 border-0">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Ulaşan Siparişler</h5>
+                    <h2 class="fw-bold display-5">@ViewBag.CompletedOrders</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-bottom fw-bold py-3">
+            <i class="bi bi-clock-history"></i> Sipariş Geçmişim
+        </div>
+        <div class="card-body p-0">
+            @if (Model.Count == 0)
+            {
+                <div class="p-5 text-center text-muted">
+                    <h5>Henüz hiç sipariş vermediniz.</h5>
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-outline-primary mt-3">Menüye Göz At</a>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Sipariş No</th>
+                            <th>Tedarikçi (Restoran)</th>
+                            <th>Tarih</th>
+                            <th>Tutar</th>
+                            <th>Durum</th>
+                            <th>İşlem</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var order in Model)
+                        {
+                            <tr>
+                                <td class="fw-bold text-secondary">#@order.OrderId</td>
+                                <td>@order.Caterer?.FullName</td>
+                                <td>@order.OrderDate?.ToString("dd MMM yyyy - HH:mm")</td>
+                                <td class="fw-bold text-primary">@order.TotalAmount.ToString("C2")</td>
+                                <td>
+                                    @{
+                                        var badgeClass = order.Status switch
+                                        {
+                                            "Tamamlandı" => "bg-success",
+                                            "Hazırlanıyor" => "bg-warning text-dark",
+                                            "Yolda" => "bg-info text-dark",
+                                            "İptal Edildi" => "bg-danger",
+                                            _ => "bg-secondary"
+                                        };
+                                    }
+                                    <span class="badge @badgeClass fs-6">@order.Status</span>
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <a asp-action="DownloadReceipt" asp-route-id="@order.OrderId" class="btn btn-sm btn-danger text-white shadow-sm" target="_blank" title="Fiş İndir">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i> Fiş
+                                        </a>
+        
+                                        <a asp-action="DownloadAgreement" asp-route-id="@order.OrderId" class="btn btn-sm btn-dark shadow-sm" target="_blank" title="Sözleşme İndir">
+                                            <i class="bi bi-file-earmark-text"></i> Sözleşme
+                                        </a>
+
+                                        @if (order.Status == "Tamamlandı")
+                                        {
+                                            <button type="button" onclick="openChatWidget(@order.OrderId)" class="btn btn-sm btn-info text-white fw-bold shadow-sm" title="Canlı Sohbet">
+                                                <i class="bi bi-chat-dots-fill"></i> Mesajlaş
+                                            </button>
+            
+                                            @if (order.Ratings != null && order.Ratings.Any())
+                                            {
+                                                <button type="button" class="btn btn-sm btn-secondary shadow-sm fw-bold disabled" aria-disabled="true" title="Bu siparişi zaten değerlendirdiniz">
+                                                    <i class="bi bi-star-fill text-warning"></i> Değerlendirildi
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button type="button" class="btn btn-sm btn-outline-success shadow-sm fw-bold rating-btn" 
+                                                        data-bs-toggle="modal" data-bs-target="#ratingModal" 
+                                                        data-orderid="@order.OrderId" data-caterer="@order.Caterer?.FullName">
+                                                    <i class="bi bi-star-fill"></i> Puan Ver
+                                                </button>
+                                            }
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="ratingModal" tabindex="-1" aria-labelledby="ratingModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form asp-action="SubmitRating" method="post">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold" id="ratingModalLabel"><i class="bi bi-star-fill text-warning"></i> Siparişi Değerlendir</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <input type="hidden" name="orderId" id="modalOrderId" />
+                    
+                    <div class="alert alert-light border border-success border-start-0 border-end-0 border-top-0 mb-4 pb-3">
+                        Tedarikçi: <strong id="modalCatererName" class="text-success fs-5"></strong>
+                    </div>
+
+                    <div class="row mb-3 text-center">
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-bold text-muted small mb-1">Lezzet Puanı</label>
+                            <select name="menuScore" class="form-select form-select-sm border-warning" required>
+                                <option value="">Seçiniz</option>
+                                <option value="5">5 - Çok İyi</option><option value="4">4 - İyi</option><option value="3">3 - Orta</option><option value="2">2 - Kötü</option><option value="1">1 - Çok Kötü</option>
+                            </select>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-bold text-muted small mb-1">Restoran Puanı</label>
+                            <select name="catererScore" class="form-select form-select-sm border-warning" required>
+                                <option value="">Seçiniz</option>
+                                <option value="5">5 - Çok İyi</option><option value="4">4 - İyi</option><option value="3">3 - Orta</option><option value="2">2 - Kötü</option><option value="1">1 - Çok Kötü</option>
+                            </select>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-bold text-muted small mb-1">Servis Puanı</label>
+                            <select name="service" class="form-select form-select-sm border-warning" required>
+                                <option value="">Seçiniz</option>
+                                <option value="5">5 - Çok Hızlı</option><option value="4">4 - Hızlı</option><option value="3">3 - Normal</option><option value="2">2 - Yavaş</option><option value="1">1 - Çok Yavaş</option>
+                            </select>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-bold text-muted small mb-1">Hız Puanı</label>
+                            <select name="speed" class="form-select form-select-sm border-warning" required>
+                                <option value="">Seçiniz</option>
+                                <option value="5">5 - Çok İyi</option><option value="4">4 - İyi</option><option value="3">3 - Orta</option><option value="2">2 - Kötü</option><option value="1">1 - Çok Kötü</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label fw-bold">Yorumunuz (Opsiyonel)</label>
+                        <textarea name="comment" class="form-control" rows="3" maxlength="500" placeholder="Yemek ve hizmet hakkında ne düşünüyorsunuz?"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Vazgeç</button>
+                    <button type="submit" class="btn btn-success fw-bold px-4">Değerlendirmeyi Gönder</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <div id="chatWidgetContainer"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+
+    <script>
+    function openChatWidget(orderId) {
+        // Zaten bir kutu açıksa yenisini yüklemeden önce eskisini sil
+        var existingWidget = document.getElementById("liveChatWidget");
+        if (existingWidget) existingWidget.remove();
+
+        // AJAX ile sohbet arayüzünü getir ve sağ alta ekle
+        $.get("/Chat/LoadChatWidget?orderId=" + orderId, function (data) {
+            $("#chatWidgetContainer").html(data);
+        }).fail(function () {
+            alert("Sohbet bağlantısı kurulurken bir hata oluştu.");
+        });
+    }
+</script>
+    <script>
+        // Butona tıklandığında sipariş ID'sini ve Tedarikçi adını Modal'ın içine dinamik olarak yazdırıyoruz
+        document.addEventListener("DOMContentLoaded", function() {
+            var ratingButtons = document.querySelectorAll('.rating-btn');
+            
+            ratingButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
+                    var orderId = this.getAttribute('data-orderid');
+                    var catererName = this.getAttribute('data-caterer');
+                    
+                    document.getElementById('modalOrderId').value = orderId;
+                    document.getElementById('modalCatererName').innerText = catererName;
+                });
+            });
+        });
+    </script>
+}

@@ -1,0 +1,155 @@
+﻿@model List<project.Models.User>
+@{
+ViewData["Title"] = "Ana Sayfa - Restoranlar";
+}
+
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-geo-alt-fill"></i> Yakınımdaki Restoranlar</span>
+                    <button type="button" class="btn btn-sm btn-light text-primary fw-bold shadow-sm" onclick="findLiveLocation()">
+                        <i class="bi bi-crosshair"></i> Anlık Konumumu Bul
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div id="map" style="height: 350px; width: 100%;"></div>
+                </div>
+                <div class="card-footer bg-white text-muted small" id="location-status">
+                    <span class="text-secondary"><i class="bi bi-info-circle"></i> Yükleniyor...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row" id="caterer-list">
+        @if (Model == null || !Model.Any())
+        {
+        <div class="col-12 text-center text-muted mt-5">
+            <i class="bi bi-shop-window fs-1"></i>
+            <h5>Şu an hizmet veren aktif restoran bulunmuyor.</h5>
+        </div>
+        }
+        else
+        {
+        foreach (var caterer in Model)
+        {
+        var lat = caterer.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "39.920770";
+        var lng = caterer.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "32.854110";
+
+        <div class="col-md-4 mb-4 caterer-card" data-lat="@lat" data-lng="@lng">
+            <div class="card h-100 shadow-sm border-0 position-relative text-center">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center p-4">
+                    <div class="bg-light rounded-circle p-4 mb-3">
+                        <i class="bi bi-shop fs-1 text-primary"></i>
+                    </div>
+                    <h4 class="card-title fw-bold text-dark mb-1">@caterer.FullName</h4>
+
+                    <div class="d-flex justify-content-between w-100 mt-4">
+                        <a asp-controller="Home" asp-action="CatererMenu" asp-route-id="@caterer.UserId" class="btn btn-primary w-100 fw-bold shadow-sm">
+                            <i class="bi bi-menu-button-wide me-1"></i> Menüyü Gör
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        }
+        }
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyATXpE7v9SnWOXfZFqWn6LoaJSW98k6jWs&libraries=geometry"></script>
+<script>
+    let map;
+    let userMarker;
+    let catererMarkers = [];
+    const maxDistanceMeters = 5000;
+
+    function initMap() {
+        const dbLat = parseFloat('@ViewBag.UserLat');
+        const dbLng = parseFloat('@ViewBag.UserLng');
+        const initialPos = { lat: dbLat, lng: dbLng };
+
+        map = new google.maps.Map(document.getElementById("map"), {
+            zoom: 13,
+            center: initialPos,
+            styles: [ { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] } ]
+        });
+
+        userMarker = new google.maps.Marker({
+            position: initialPos,
+            map: map,
+            icon: { url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png' },
+            title: "Konum Bilginiz"
+        });
+
+        document.getElementById("location-status").innerHTML =
+            "<span class='text-dark'><i class='bi bi-info-circle-fill text-primary'></i> Profilinizde kayıtlı olan konuma göre 5 km yakındaki tedarikçiler listeleniyor.</span>";
+
+        filterMealsByDistance(initialPos);
+    }
+
+    function findLiveLocation() {
+        const statusPanel = document.getElementById("location-status");
+        statusPanel.innerHTML = "<div class='spinner-border spinner-border-sm text-primary' role='status'></div> Tarayıcı üzerinden anlık konumunuz tespit ediliyor...";
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const livePos = { lat: position.coords.latitude, lng: position.coords.longitude };
+                    userMarker.setPosition(livePos);
+                    map.setCenter(livePos);
+                    map.setZoom(14);
+                    statusPanel.innerHTML = "<span class='text-success fw-bold'><i class='bi bi-check-circle-fill'></i> Anlık konumunuz başarıyla alındı! Mesafeler yeniden hesaplandı.</span>";
+                    filterMealsByDistance(livePos);
+                },
+                () => {
+                    statusPanel.innerHTML = "<span class='text-danger fw-bold'><i class='bi bi-exclamation-triangle-fill'></i> Konum erişim izni reddedildi. Mevcut kayıtlı adresiniz baz alınmaya devam ediyor.</span>";
+                }
+            );
+        } else {
+            statusPanel.innerText = "Tarayıcınız konum servislerini desteklemiyor.";
+        }
+    }
+
+    function filterMealsByDistance(userPos) {
+        const userLatLng = new google.maps.LatLng(userPos.lat, userPos.lng);
+        const catererCards = document.querySelectorAll('.caterer-card');
+
+        catererMarkers.forEach(marker => marker.setMap(null));
+        catererMarkers = [];
+
+        let visibleCardCount = 0;
+
+        catererCards.forEach(card => {
+            const cLat = parseFloat(card.getAttribute('data-lat'));
+            const cLng = parseFloat(card.getAttribute('data-lng'));
+            const catererLatLng = new google.maps.LatLng(cLat, cLng);
+
+            const distance = google.maps.geometry.spherical.computeDistanceBetween(userLatLng, catererLatLng);
+            if (distance <= maxDistanceMeters) {
+                card.style.display = "block";
+                visibleCardCount++;
+
+                let marker = new google.maps.Marker({
+                    position: catererLatLng,
+                    map: map,
+                    title: card.querySelector('.card-title').innerText,
+                    animation: google.maps.Animation.DROP
+                });
+                catererMarkers.push(marker);
+            } else {
+                card.style.display = "none";
+            }
+        });
+
+        if(visibleCardCount === 0 && catererCards.length > 0) {
+            document.getElementById("location-status").innerHTML += " <strong class='text-danger'>(Uyarı: 5 km yakınınızda hizmet veren restoran bulunamadı!)</strong>";
+        }
+    }
+
+    window.onload = initMap;
+</script>
+}

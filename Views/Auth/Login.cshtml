@@ -1,0 +1,61 @@
+@model project.ViewModels.LoginViewModel
+@{
+    ViewData["Title"] = "Giriş Yap";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success text-center">
+                    @TempData["SuccessMessage"]
+                </div>
+            }
+
+            <div class="card shadow">
+                <div class="card-header bg-dark text-white text-center">
+                    <h4>Sisteme Giriş</h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Login" method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Email" class="form-label"></label>
+                            <input asp-for="Email" class="form-control" placeholder="E-posta adresiniz" />
+                            <span asp-validation-for="Email" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Password" class="form-label">Şifre</label>
+                            <input asp-for="Password" class="form-control" placeholder="Şifreniz" />
+                            <span asp-validation-for="Password" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="text-end mb-3">
+                            <a asp-action="ForgotPassword" asp-controller="Auth" class="small text-decoration-none">Şifremi unuttum</a>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input asp-for="RememberMe" class="form-check-input" />
+                            <label asp-for="RememberMe" class="form-check-label">Beni Hatırla</label>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-dark">Giriş Yap</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center">
+                    Hesabınız yok mu? <a asp-action="Register">Kayıt Olun</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

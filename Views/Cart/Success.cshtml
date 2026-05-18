@@ -1,0 +1,109 @@
+@model project.Models.Order
+
+@{
+    ViewData["Title"] = "Siparişiniz Alındı";
+}
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow border-0 text-center mb-4 bg-white py-4">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <i class="bi bi-check-circle-fill text-success" style="font-size: 4.5rem;"></i>
+                    </div>
+                    <h2 class="fw-bold text-success">Siparişiniz Başarıyla Alındı!</h2>
+                    <p class="text-muted fs-5">Ödemeniz simüle edildi ve restoran bilgilendirildi.</p>
+                    <p class="text-secondary small mb-0">Sipariş detayları ve mesafeli satış sözleşmeniz e-posta adresinize PDF olarak gönderilmiştir.</p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-info-circle me-2"></i> Sipariş Bilgileri</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <span class="text-muted d-block small">SİPARİŞ NUMARASI</span>
+                            <strong class="text-primary fs-5">#@Model.OrderId</strong>
+                        </div>
+                        <div class="col-sm-6">
+                            <span class="text-muted d-block small">TETARİKÇİ / RESTORAN</span>
+                            <strong class="text-dark">@Model.Caterer?.FullName</strong>
+                        </div>
+                        <div class="col-sm-6">
+                            <span class="text-muted d-block small">SİPARİŞ TARİHİ</span>
+                            <strong class="text-dark">@Model.OrderDate?.ToString("dd.MM.yyyy HH:mm")</strong>
+                        </div>
+                        <div class="col-sm-6">
+                            <span class="text-muted d-block small">SİPARİŞ DURUMU</span>
+                            <span class="badge bg-warning text-dark px-3 py-2 fw-bold">@Model.Status</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-list-stars me-2"></i> Sipariş Detayları</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col" class="ps-4">Ürün Adı & Seçenekler</th>
+                                    <th scope="col" class="text-center">Adet</th>
+                                    <th scope="col" class="text-end pe-4">Toplam</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.OrderItems)
+                                {
+                                    decimal itemTotal = item.Quantity * item.UnitPrice;
+                                    <tr>
+                                        <td class="ps-4 py-3">
+                                            <strong class="text-dark d-block">@item.Item?.Title</strong>
+                                            
+                                            @if (item.OrderItemOptions != null && item.OrderItemOptions.Any())
+                                            {
+                                                <div class="mt-1 ps-2" style="border-left: 2px solid #20c997;">
+                                                    @foreach (var optionMapping in item.OrderItemOptions)
+                                                    {
+                                                        <span class="badge bg-light text-secondary border me-1 my-1" style="font-size: 0.8rem;">
+                                                            <i class="bi bi-plus-sm"></i> @optionMapping.Option?.Name
+                                                            @if (optionMapping.Option?.PriceChange > 0)
+                                                            {
+                                                                <span class="text-success small">(+@optionMapping.Option.PriceChange?.ToString("C2"))</span>
+                                                            }
+                                                        </span>
+                                                    }
+                                                </div>
+                                            }
+                                        </td>
+                                        <td class="text-center fw-medium">@item.Quantity Adet</td>
+                                        <td class="text-end pe-4 fw-bold text-primary">@itemTotal.ToString("C2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer bg-white p-4 text-end border-top-0">
+                    <span class="text-muted fs-5 me-2">Ödenen Toplam Tutar:</span>
+                    <span class="fw-bold text-success fs-3">@Model.TotalAmount.ToString("C2")</span>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a asp-controller="Customer" asp-action="Dashboard" class="btn btn-outline-primary btn-lg shadow-sm">
+                    <i class="bi bi-speedometer2"></i> Siparişlerimi Takip Et
+                </a>
+                <a asp-controller="Home" asp-action="Index" class="btn btn-primary btn-lg shadow-sm px-4">
+                    <i class="bi bi-house-door"></i> Ana Sayfaya Dön
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

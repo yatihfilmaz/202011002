@@ -1,0 +1,190 @@
+@model List<project.Models.MenuItem>
+@{
+ViewData["Title"] = ViewBag.CatererName + " Menüsü";
+}
+
+<div class="container mt-4">
+    <div class="d-flex align-items-center mb-4 pb-2 border-bottom">
+        <a asp-action="Index" class="btn btn-outline-secondary me-3"><i class="bi bi-arrow-left"></i> Geri</a>
+        <h2 class="mb-0"><i class="bi bi-shop"></i> @ViewBag.CatererName Menüsü</h2>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 bg-white border-top border-warning border-3">
+                <div class="card-body py-3 d-flex justify-content-around align-items-center flex-wrap">
+
+                    <div class="text-center px-3 mb-2 mb-md-0">
+                        <small class="text-muted fw-bold text-uppercase">Lezzet Puanı</small>
+                        <h3 class="mb-0 fw-bold text-dark"><i class="bi bi-star-fill text-warning"></i> @ViewBag.AvgMenu<span class="fs-6 text-muted">/5</span></h3>
+                    </div>
+
+                    <div class="text-center px-3 border-start mb-2 mb-md-0">
+                        <small class="text-muted fw-bold text-uppercase">İşletme Puanı</small>
+                        <h3 class="mb-0 fw-bold text-dark"><i class="bi bi-star-fill text-warning"></i> @ViewBag.AvgCaterer<span class="fs-6 text-muted">/5</span></h3>
+                    </div>
+
+                    <div class="text-center px-3 border-start mb-2 mb-md-0 d-none d-sm-block">
+                        <small class="text-muted fw-bold text-uppercase">Servis</small>
+                        <h4 class="mb-0 fw-bold text-secondary">@ViewBag.AvgService</h4>
+                    </div>
+
+                    <div class="text-center px-3 border-start mb-2 mb-md-0 d-none d-sm-block">
+                        <small class="text-muted fw-bold text-uppercase">Hız</small>
+                        <h4 class="mb-0 fw-bold text-secondary">@ViewBag.AvgSpeed</h4>
+                    </div>
+
+                    <div class="text-center px-3 border-start">
+                        <button type="button" class="btn btn-outline-dark fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#reviewsModal">
+                            <i class="bi bi-chat-left-text-fill text-primary"></i> Yorumlar (@ViewBag.TotalReviews)
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-3 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light fw-bold">Kategoriler</div>
+                <div class="list-group list-group-flush">
+                    <a asp-action="CatererMenu" asp-route-id="@ViewBag.CatererId" asp-route-categoryId="" class="list-group-item list-group-item-action @(ViewBag.SelectedCategoryId == null ? "active" : "")">
+                        Tüm Yemekler
+                    </a>
+                    @if (ViewBag.Categories != null)
+                    {
+                    foreach (var category in ViewBag.Categories)
+                    {
+                    <a asp-action="CatererMenu" asp-route-id="@ViewBag.CatererId" asp-route-categoryId="@category.CategoryId"
+                       class="list-group-item list-group-item-action @(ViewBag.SelectedCategoryId == category.CategoryId ? "active" : "")">
+                        @category.Name
+                    </a>
+                    }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-9">
+            @if (TempData["Success"] != null)
+            {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            }
+
+            <div class="row">
+                @if (Model == null || !Model.Any())
+                {
+                <div class="col-12 text-center text-muted mt-5">
+                    <i class="bi bi-basket fs-1"></i>
+                    <h5>Bu restorana ait seçtiğiniz kriterde yemek bulunmuyor.</h5>
+                </div>
+                }
+                else
+                {
+                foreach (var item in Model)
+                {
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 shadow-sm border-0 position-relative">
+                        <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "/images/default-food.png" : item.ImageUrl)" class="card-img-top" style="height: 180px; object-fit: cover;" alt="@item.Title">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title fw-bold text-dark mb-1">@item.Title</h5>
+                            <div class="mb-2">
+                                <span class="badge bg-light text-secondary border">@item.Category?.Name</span>
+                            </div>
+                            <p class="card-text text-muted small flex-grow-1" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                @item.Description
+                            </p>
+                            <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                                <span class="fs-5 fw-bold text-success">@item.Price.ToString("C2")</span>
+                                <small class="text-muted">Stok: @item.StockQuantity</small>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-white border-0 pb-3">
+                            <form asp-controller="Cart" asp-action="AddToCart" method="post">
+                                <input type="hidden" name="itemId" value="@item.ItemId" />
+                                <button type="button" class="btn btn-primary w-100 fw-bold" onclick="openAddToCartModal(@item.ItemId)">
+                                    <i class="bi bi-cart-plus me-1"></i> Sepete Ekle
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="dynamicAddToCartModal" tabindex="-1" aria-labelledby="addToCartModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow border-0" id="modalDynamicContent"></div>
+    </div>
+</div>
+
+<div class="modal fade" id="reviewsModal" tabindex="-1" aria-labelledby="reviewsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold" id="reviewsModalLabel"><i class="bi bi-star-half text-warning"></i> Restoran Değerlendirmeleri</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body bg-light p-4">
+                @if (ViewBag.TotalReviews == 0)
+                {
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-chat-square-text fs-1"></i>
+                    <h5 class="mt-3">Bu restoran için henüz değerlendirme yapılmamış.</h5>
+                    <p>İlk siparişi verip değerlendiren siz olun!</p>
+                </div>
+                }
+                else
+                {
+                foreach (var review in ViewBag.Reviews as List<project.Models.Rating>)
+                {
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong class="text-primary"><i class="bi bi-person-circle"></i> @(review.Order?.User?.FullName ?? "Anonim Müşteri")</strong>
+                            <small class="text-muted"><i class="bi bi-clock"></i> @review.CreatedAt.ToString("dd MMM yyyy - HH:mm")</small>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <span class="badge bg-light text-dark border"><span class="text-warning fw-bold">@review.MenuScore</span>/5 Lezzet</span>
+                            <span class="badge bg-light text-dark border"><span class="text-warning fw-bold">@review.CatererScore</span>/5 İşletme</span>
+                            <span class="badge bg-light text-dark border"><span class="text-secondary fw-bold">@review.Service</span>/5 Servis</span>
+                            <span class="badge bg-light text-dark border"><span class="text-secondary fw-bold">@review.Speed</span>/5 Hız</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(review.Comment))
+                        {
+                        <p class="mb-0 fst-italic text-dark border-start border-3 border-warning ps-3">
+                            "@review.Comment"
+                        </p>
+                        }
+                    </div>
+                </div>
+                }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function openAddToCartModal(itemId) {
+        $("#modalDynamicContent").html('<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">Seçenekler yükleniyor...</p></div>');
+        var myModal = new bootstrap.Modal(document.getElementById('dynamicAddToCartModal'));
+        myModal.show();
+
+        $.get("/Cart/GetMealDetails/" + itemId, function (data) {
+            $("#modalDynamicContent").html(data);
+        }).fail(function () {
+            $("#modalDynamicContent").html('<div class="alert alert-danger m-3 text-center">Yemek detayları yüklenirken bir hata oluştu.</div>');
+        });
+    }
+</script>
+}

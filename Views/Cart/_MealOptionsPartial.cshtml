@@ -1,0 +1,91 @@
+@model project.Models.MenuItem
+
+<div class="modal-header bg-light">
+    <div class="d-flex align-items-center">
+        @if (!string.IsNullOrEmpty(Model.ImageUrl))
+        {
+            <img src="@Model.ImageUrl" alt="@Model.Title" class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;" />
+        }
+        <div>
+            <h5 class="modal-title fw-bold text-dark" id="addToCartModalLabel">@Model.Title</h5>
+            <small class="text-muted">@Model.Description</small>
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+</div>
+
+<form asp-action="AddToCart" asp-controller="Cart" method="post">
+    <input type="hidden" name="ItemId" value="@Model.ItemId" />
+
+    <div class="modal-body pb-0" style="max-height: 400px; overflow-y: auto;">
+        <div class="d-flex justify-content-between align-items-center mb-3 bg-light p-2 rounded">
+            <span class="fw-bold text-muted">Taban Fiyat:</span>
+            <span class="fw-bold text-primary fs-5">@Model.Price.ToString("C2")</span>
+        </div>
+
+        @if (Model.Customizations != null && Model.Customizations.Any())
+        {
+            // Seçenekleri gruplara ayırarak listeliyoruz
+            var groupedOptions = Model.Customizations.GroupBy(c => c.OptionGroup).OrderBy(g => g.Key);
+
+            foreach (var group in groupedOptions)
+            {
+                <div class="mb-4">
+                    <h6 class="fw-bold border-bottom pb-2 text-secondary"><i class="bi bi-check2-circle me-1"></i> @group.Key</h6>
+                    
+                    @foreach (var option in group)
+                    {
+                        // EĞER grup adında "Seçimi", "Boyut" veya "Porsiyon" geçiyorsa tekli seçim (Radio), yoksa çoklu seçim (Checkbox) yapıyoruz
+                        bool isSingleChoice = group.Key.Contains("Seçimi") || group.Key.Contains("Boyut") || group.Key.Contains("Porsiyon");
+
+                        <div class="form-check d-flex justify-content-between align-items-center my-2">
+                            <div>
+                                @if (isSingleChoice)
+                                {
+                                    <input class="form-check-input" type="radio" name="SelectedOptions_@group.Key.Replace(" ", "_")" value="@option.OptionId" id="opt_@option.OptionId" required />
+                                }
+                                else
+                                {
+                                    <input class="form-check-input" type="checkbox" name="SelectedOptionIds" value="@option.OptionId" id="opt_@option.OptionId" />
+                                }
+                                <label class="form-check-input-label ms-2 fw-semibold" for="opt_@option.OptionId">
+                                    @option.Name
+                                </label>
+                            </div>
+                            
+                            @if (option.PriceChange > 0)
+                            {
+                                <span class="badge bg-success-subtle text-success rounded-pill">+@option.PriceChange?.ToString("C2")</span>
+                            }
+                            else if (option.PriceChange < 0)
+                            {
+                                <span class="badge bg-danger-subtle text-danger rounded-pill">@option.PriceChange?.ToString("C2")</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">Fark Yok</span>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <p class="text-muted small text-center my-3">Bu yemek için herhangi bir ekstra özelleştirme bulunmuyor.</p>
+        }
+
+        <div class="row align-items-center bg-light p-3 border-top mt-3 mx-0 rounded-bottom">
+            <div class="col-6">
+                <label class="fw-bold text-dark">Adet:</label>
+            </div>
+            <div class="col-6">
+                <input type="number" name="Quantity" class="form-control text-center fw-bold" value="1" min="1" max="@Model.StockQuantity" />
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-footer border-top-0 d-grid">
+        <button type="submit" class="btn btn-primary btn-lg fw-bold"><i class="bi bi-cart-plus me-2"></i> Sepete Ekle</button>
+    </div>
+</form>

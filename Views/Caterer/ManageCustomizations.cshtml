@@ -1,0 +1,138 @@
+@model project.Models.MenuItem
+@using System.Linq
+
+@{
+    ViewData["Title"] = "Seçenekleri Yönet";
+    // Mevcut seçenekleri grup adlarına göre grupluyoruz (Örn: "Soslar" grubu altındaki tüm nesneler)
+    var groupedOptions = Model.Customizations?
+        .GroupBy(c => c.OptionGroup)
+        .OrderBy(g => g.Key)
+        .ToList() ?? new List<IGrouping<string, project.Models.Customization>>();
+}
+
+<div class="container-fluid px-4 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><span class="text-primary">@Model.Title</span> Seçenekleri</h2>
+        <a asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Menüye Dön</a>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Yeni Seçenek Grubu Ekle</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="AddCustomization" method="post">
+                        <input type="hidden" name="itemId" value="@Model.ItemId" />
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Grup Adı</label>
+                            <input type="text" name="optionGroup" class="form-control" required placeholder="Örn: İçecek Seçimi, Kenar Tipi..." />
+                            <small class="text-muted">Bu gruba ait ilk seçeneği aşağıya girerek grubu başlatın.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">İlk Seçenek Adı</label>
+                            <input type="text" name="name" class="form-control" required placeholder="Örn: Kola, İnce Kenar..." />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Fiyat Farkı (₺)</label>
+                            <input type="number" step="0.01" name="priceChange" class="form-control" value="0.00" />
+                            <small class="text-muted">Fiyatı etkilemiyorsa 0 bırakın.</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100">Grubu Oluştur ve Ekle</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            @if (!groupedOptions.Any())
+            {
+                <div class="alert alert-secondary text-center py-5">
+                    <h5 class="text-muted">Henüz hiç seçenek eklenmemiş.</h5>
+                    <p class="mb-0">Soldaki formu kullanarak ilk seçenek grubunuzu oluşturabilirsiniz.</p>
+                </div>
+            }
+            else
+            {
+                // Her bir grup için ayrı bir kart (tablo) oluşturuyoruz
+                foreach (var group in groupedOptions)
+                {
+                    <div class="card shadow-sm mb-4 border-primary">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 text-primary fw-bold"><i class="bi bi-list-ul me-2"></i>@group.Key</h5>
+                            <span class="badge bg-primary rounded-pill">@group.Count() Seçenek</span>
+                        </div>
+                        
+                        <div class="card-body p-0">
+                            <table class="table table-hover table-striped mb-0">
+                                <tbody>
+                                    @foreach (var item in group.OrderBy(i => i.PriceChange))
+                                    {
+                                        <tr>
+                                            <td class="fw-bold ps-4">@item.Name</td>
+                                            <td>
+                                                @if (item.PriceChange > 0)
+                                                {
+                                                    <span class="text-success fw-bold">+@item.PriceChange?.ToString("C2")</span>
+                                                }
+                                                else if (item.PriceChange < 0)
+                                                {
+                                                    <span class="text-danger fw-bold">@item.PriceChange?.ToString("C2")</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">Fiyat Değişmez</span>
+                                                }
+                                            </td>
+                                            <td class="text-end pe-4">
+                                                <form asp-action="DeleteCustomization" method="post" style="display:inline;" onsubmit="return confirm('Bu seçeneği silmek istediğinize emin misiniz?');">
+                                                    <input type="hidden" name="optionId" value="@item.OptionId" />
+                                                    <input type="hidden" name="itemId" value="@Model.ItemId" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">Sil</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="card-footer bg-white py-3">
+                            <form asp-action="AddCustomization" method="post" class="row g-2 align-items-center">
+                                <input type="hidden" name="itemId" value="@Model.ItemId" />
+                                <input type="hidden" name="optionGroup" value="@group.Key" />
+                                
+                                <div class="col-sm-5">
+                                    <input type="text" name="name" class="form-control form-control-sm" required placeholder="Yeni @group.Key Ekle..." />
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text text-muted">₺</span>
+                                        <input type="number" step="0.01" name="priceChange" class="form-control" value="0.00" />
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <button type="submit" class="btn btn-sm btn-primary w-100">Ekle</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>

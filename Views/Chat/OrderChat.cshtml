@@ -1,0 +1,110 @@
+@model List<project.Models.ChatMessage>
+@{
+    ViewData["Title"] = "Canlı Destek";
+    int currentUserId = ViewBag.CurrentUserId;
+}
+
+<div class="container mt-4">
+    <div class="card shadow border-0" style="height: 75vh;">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-chat-dots-fill"></i> @ViewBag.OtherPartyName ile Sohbet (Sipariş #@ViewBag.OrderId)</h5>
+            <button onclick="window.history.back()" class="btn btn-sm btn-light text-primary fw-bold"><i class="bi bi-arrow-left"></i> Geri Dön</button>
+        </div>
+        
+        <div class="card-body bg-light" id="chatBox" style="overflow-y: auto; display: flex; flex-direction: column;">
+            @if(Model.Any() == false)
+            {
+                <div class="text-center text-muted my-auto" id="emptyChatMsg">
+                    <i class="bi bi-chat-square-quote fs-1"></i>
+                    <p>Henüz mesaj yok. İlk mesajı siz gönderin!</p>
+                </div>
+            }
+
+            @foreach (var msg in Model)
+            {
+                bool isMe = msg.SenderId == currentUserId;
+                <div class="mb-3 w-75 @(isMe ? "align-self-end text-end" : "align-self-start")">
+                    <small class="text-muted fw-bold d-block mb-1">@(isMe ? "Siz" : msg.Sender?.FullName)</small>
+                    <div class="p-3 rounded-3 shadow-sm d-inline-block @(isMe ? "bg-primary text-white" : "bg-white text-dark border")" style="text-align: left;">
+                        @msg.MessageText
+                    </div>
+                    <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">@msg.SentAt.ToString("HH:mm")</small>
+                </div>
+            }
+        </div>
+
+        <div class="card-footer bg-white border-0 py-3">
+            <div class="input-group">
+                <input type="text" id="messageInput" class="form-control form-control-lg bg-light" placeholder="Bir mesaj yazın..." autocomplete="off">
+                <button class="btn btn-primary px-4 fw-bold" type="button" id="sendBtn"><i class="bi bi-send-fill"></i> Gönder</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+
+<script>
+    const orderId = "@ViewBag.OrderId";
+    const currentUserId = "@currentUserId";
+
+    // Sayfa açıldığında en alta kaydır
+    const chatBox = document.getElementById("chatBox");
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    // SignalR Bağlantısını Kur
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/chatHub")
+        .build();
+
+    // Mesaj Geldiğinde Tetiklenecek Fonksiyon
+    connection.on("ReceiveMessage", function (senderId, senderName, message, time) {
+        document.getElementById("emptyChatMsg")?.remove(); // Boş mesaj uyarısını sil
+        
+        const isMe = senderId === currentUserId;
+        const alignClass = isMe ? "align-self-end text-end" : "align-self-start";
+        const bgClass = isMe ? "bg-primary text-white" : "bg-white text-dark border";
+        const displayName = isMe ? "Siz" : senderName;
+
+        const msgHtml = `
+            <div class="mb-3 w-75 ${alignClass}">
+                <small class="text-muted fw-bold d-block mb-1">${displayName}</small>
+                <div class="p-3 rounded-3 shadow-sm d-inline-block ${bgClass}" style="text-align: left;">
+                    ${message}
+                </div>
+                <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">${time}</small>
+            </div>
+        `;
+
+        chatBox.innerHTML += msgHtml;
+        chatBox.scrollTop = chatBox.scrollHeight; // Yeni mesaj gelince en alta kaydır
+    });
+
+    // Bağlantıyı başlat ve Odaya (Gruba) katıl
+    connection.start().then(function () {
+        connection.invoke("JoinOrderChat", orderId);
+    }).catch(function (err) {
+        console.error(err.toString());
+    });
+
+    // Gönder Butonuna Tıklama Olayı
+    document.getElementById("sendBtn").addEventListener("click", sendMessage);
+
+    // Enter Tuşuna Basma Olayı
+    document.getElementById("messageInput").addEventListener("keypress", function (e) {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    function sendMessage() {
+        const messageInput = document.getElementById("messageInput");
+        const message = messageInput.value.trim();
+
+        if (message !== "") {
+            connection.invoke("SendMessage", orderId, message).catch(function (err) {
+                console.error(err.toString());
+            });
+            messageInput.value = "";
+            messageInput.focus();
+        }
+    }
+</script>
