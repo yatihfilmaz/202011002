@@ -1,0 +1,42 @@
+@model List<project.Models.User>
+@{ ViewData["Title"] = "Müşteri Yönetimi"; }
+
+<div class="container-fluid mt-4">
+    <h3 class="mb-4"><i class="bi bi-people"></i> Müşteri Yönetimi</h3>
+    
+    @if (TempData["Success"] != null) { <div class="alert alert-success">@TempData["Success"]</div> }
+
+    <div class="card shadow-sm border-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+            <tr>
+                <th>Müşteri Adı</th>
+                <th>E-Posta</th>
+                <th>Durum</th>
+                <th>İşlem</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var user in Model)
+            {
+                <tr>
+                    <td class="fw-bold">@user.FullName</td>
+                    <td>@user.Email</td>
+                    <td>
+                        @if (user.IsApproved) { <span class="badge bg-success">Aktif</span> }
+                        else { <span class="badge bg-danger">Engellendi</span> }
+                    </td>
+                    <td>
+                        <form asp-action="ToggleUserStatus" method="post" class="d-inline">
+                            <input type="hidden" name="id" value="@user.UserId" />
+                            <button type="submit" class="btn btn-sm @(user.IsApproved ? "btn-danger" : "btn-success")" onclick="return confirm('Emin misiniz?');">
+                                @(user.IsApproved ? "Kullanıcıyı Engelle" : "Engeli Kaldır")
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

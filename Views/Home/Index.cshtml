@@ -1,0 +1,248 @@
+﻿@model List<project.Models.User>
+@using System.Security.Claims
+@using project.Models
+@inject DenemeContext _context
+
+@{
+ViewData["Title"] = "Ana Sayfa - Restoranlar";
+
+// GÜVENLİK VE DOĞRULUK ADIMI: Kullanıcının DB'deki konumunu doğrudan çekiyoruz
+string uLatStr = "39.920770"; // Konum yoksa Varsayılan Ankara
+string uLngStr = "32.854110";
+
+if (User.Identity != null && User.Identity.IsAuthenticated)
+{
+var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+if (int.TryParse(userIdStr, out int userId))
+{
+var currentUser = _context.Users.FirstOrDefault(u => u.UserId == userId);
+if (currentUser != null && currentUser.Latitude.HasValue && currentUser.Longitude.HasValue)
+{
+// InvariantCulture ile JavaScript'in anlayacağı noktalı (.) formata çeviriyoruz
+uLatStr = currentUser.Latitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+uLngStr = currentUser.Longitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+}
+}
+}
+}
+
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-geo-alt-fill"></i> Yakınımdaki Restoranlar</span>
+                    <button type="button" class="btn btn-sm btn-light text-primary fw-bold shadow-sm" onclick="findLiveLocation()">
+                        <i class="bi bi-crosshair"></i> Anlık Konumumu Bul
+                    </button>
+                </div>
+
+                <div class="bg-light border-bottom p-3 d-flex align-items-center">
+                    <label for="radRange" class="form-label fw-bold mb-0 me-3 text-nowrap">
+                        <i class="bi bi-radar"></i> Mesafe: <span id="radVal" class="text-primary fs-5">5</span> km
+                    </label>
+                    <input type="range" class="form-range" id="radRange" min="1" max="50" step="1" value="5" oninput="updRad(this.value)">
+                </div>
+
+                <div class="card-body p-0">
+                    <div id="map" style="height: 350px; width: 100%;"></div>
+                </div>
+                <div class="card-footer bg-white text-muted small" id="location-status">
+                    <span class="text-secondary"><i class="bi bi-info-circle"></i> Yükleniyor...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row" id="caterer-list">
+        @if (Model == null || !Model.Any())
+        {
+        <div class="col-12 text-center text-muted mt-5">
+            <i class="bi bi-shop-window fs-1"></i>
+            <h5>Şu an hizmet veren aktif restoran bulunmuyor.</h5>
+        </div>
+        }
+        else
+        {
+        foreach (var caterer in Model)
+        {
+        var lat = caterer.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "39.920770";
+        var lng = caterer.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "32.854110";
+
+        <div class="col-md-4 mb-4 caterer-card" data-lat="@lat" data-lng="@lng">
+            <div class="card h-100 shadow-sm border-0 position-relative text-center">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center p-4">
+                    <div class="bg-light rounded-circle p-4 mb-3">
+                        <i class="bi bi-shop fs-1 text-primary"></i>
+                    </div>
+                    <h4 class="card-title fw-bold text-dark mb-1">@caterer.FullName</h4>
+
+                    <div class="d-flex justify-content-between w-100 mt-4">
+                        <a asp-controller="Home" asp-action="CatererMenu" asp-route-id="@caterer.UserId" class="btn btn-primary w-100 fw-bold shadow-sm">
+                            <i class="bi bi-menu-button-wide me-1"></i> Menüyü Gör
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        }
+        }
+    </div>
+</div>
+@section Scripts {
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyATXpE7v9SnWOXfZFqWn6LoaJSW98k6jWs&libraries=geometry"></script>
+    <script>
+        let map;
+        let usrMrk; 
+        let catMrks = []; 
+        let infoWin; 
+        let curRad = 5000; // Varsayılan 5km
+        let isLiveLoc = false; // YENİ: Konumun anlık olup olmadığını takip eder
+
+        function initMap() {
+            // DB'den C# ile çektiğimiz net koordinatları alıyoruz
+            const dbLat = parseFloat('@uLatStr');
+            const dbLng = parseFloat('@uLngStr');
+            
+            const initPos = { lat: dbLat, lng: dbLng };
+
+            infoWin = new google.maps.InfoWindow();
+
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 13,
+                center: initPos,
+                styles: [ { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] } ]
+            });
+
+            usrMrk = new google.maps.Marker({
+                position: initPos,
+                map: map,
+                title: "Veritabanı Konumunuz",
+                icon: {
+                    url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" 
+                }
+            });
+
+            updStatTxt(5); // Başlangıçta 5 km olarak yazdır
+            loadAllCats(); 
+            fltCats();     
+        }
+
+        // YENİ: Durum yazısını dinamik güncelleyen fonksiyon
+        function updStatTxt(km) {
+            const statPnl = document.getElementById("location-status");
+            if(isLiveLoc) {
+                statPnl.innerHTML = `<span class='text-success fw-bold'><i class='bi bi-check-circle-fill'></i> Anlık konum devrede. Şu an konumunuza göre <strong>${km} km</strong> çapındaki restoranları görüyorsunuz.</span>`;
+            } else {
+                statPnl.innerHTML = `<span class='text-dark'><i class='bi bi-info-circle-fill text-primary'></i> Şu an kayıtlı adresinize göre <strong>${km} km</strong> çapındaki restoranları görüyorsunuz.</span>`;
+            }
+        }
+
+        function updRad(val) {
+            document.getElementById('radVal').innerText = val;
+            curRad = val * 1000; 
+            updStatTxt(val); // Slider değiştikçe yazıyı da anında güncelle
+            fltCats();
+        }
+
+        function loadAllCats() {
+            const catCrds = document.querySelectorAll('.caterer-card');
+
+            catCrds.forEach(crd => {
+                let rawCLat = crd.getAttribute('data-lat');
+                let rawCLng = crd.getAttribute('data-lng');
+                
+                const cLat = parseFloat(rawCLat.replace(',', '.')) || 39.920770;
+                const cLng = parseFloat(rawCLng.replace(',', '.')) || 32.854110;
+                
+                const cPos = new google.maps.LatLng(cLat, cLng);
+                const cName = crd.querySelector('.card-title').innerText;
+                const mUrl = crd.querySelector('a').getAttribute('href'); 
+
+                let mrk = new google.maps.Marker({
+                    position: cPos,
+                    map: map,
+                    title: cName,
+                    animation: google.maps.Animation.DROP,
+                    icon: {
+                        fillColor: "#09ff00",
+                        fillOpacity: 1,
+                        strokeColor: "#000",
+                        strokeWeight: 1,
+                        scale: 8
+                    }
+                });
+
+                mrk.addListener("click", () => {
+                    const cStr = `
+                        <div style="padding: 5px; text-align: center; font-family: 'Helvetica Neue', Arial, sans-serif;">
+                            <h6 style="margin: 0 0 8px 0; font-weight: bold; color: #212529; font-size: 14px;">${cName}</h6>
+                            <a href="${mUrl}" class="btn btn-sm btn-primary text-white" style="font-size: 11px; padding: 4px 10px; text-decoration: none; background-color: #0d6efd; border-radius: 4px; font-weight: bold; display: inline-block;">
+                                Menüyü Gör
+                            </a>
+                        </div>`;
+                    infoWin.setContent(cStr);
+                    infoWin.open(map, mrk);
+                });
+
+                catMrks.push({ marker: mrk, card: crd });
+            });
+        }
+
+        function fltCats() {
+            if (!usrMrk) return;
+            const uPos = usrMrk.getPosition();
+            const bnd = new google.maps.LatLngBounds();
+            bnd.extend(uPos); 
+
+            let visCnt = 0;
+
+            catMrks.forEach(obj => {
+                const dist = google.maps.geometry.spherical.computeDistanceBetween(uPos, obj.marker.getPosition());
+
+                if (dist <= curRad) {
+                    obj.marker.setMap(map);          
+                    obj.card.style.display = "block"; 
+                    bnd.extend(obj.marker.getPosition());
+                    visCnt++;
+                } else {
+                    obj.marker.setMap(null);         
+                    obj.card.style.display = "none";  
+                }
+            });
+
+            if (visCnt > 0) {
+                map.fitBounds(bnd);
+            } else {
+                map.setCenter(uPos);
+                map.setZoom(13);
+            }
+        }
+
+        function findLiveLocation() {
+            const statPnl = document.getElementById("location-status");
+            statPnl.innerHTML = "<div class='spinner-border spinner-border-sm text-primary' role='status'></div> Anlık konumunuz tespit ediliyor...";
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const lPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        usrMrk.setPosition(lPos);
+                        
+                        isLiveLoc = true; // Anlık konuma geçildiğini sisteme bildiriyoruz
+                        updStatTxt(curRad / 1000); // Dinamik metni anlık konuma göre yenile
+                        
+                        fltCats(); 
+                    },
+                    () => {
+                        statPnl.innerHTML = "<span class='text-danger fw-bold'><i class='bi bi-exclamation-triangle-fill'></i> Konum erişim izni reddedildi.</span>";
+                    }
+                );
+            } else {
+                statPnl.innerText = "Tarayıcınız konum servislerini desteklemiyor.";
+            }
+        }
+
+        window.onload = initMap;
+    </script>
+}

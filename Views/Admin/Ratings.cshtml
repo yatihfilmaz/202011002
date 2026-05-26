@@ -1,0 +1,93 @@
+@model List<project.Models.Rating>
+@{
+    ViewData["Title"] = "Değerlendirme Yönetimi";
+}
+
+<div class="container mt-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-star-fill text-warning"></i> Tüm Restoran Değerlendirmeleri</span>
+            <span class="badge bg-secondary">@Model.Count Değerlendirme</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Restoran</th>
+                            <th>Sipariş No</th>
+                            <th>Müşteri</th>
+                            <th>Puan Detayları</th>
+                            <th>Yorum</th>
+                            <th>Tarih</th>
+                            <th class="text-center">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model == null || !Model.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <i class="bi bi-chat-left-x fs-2"></i>
+                                    <p class="mt-2 mb-0">Henüz yapılmış bir değerlendirme bulunmuyor.</p>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            foreach (var rating in Model)
+                            {
+                                <tr>
+                                    <td class="fw-bold text-secondary">
+                                        @(rating.Order?.Caterer?.FullName ?? "Bilinmeyen Restoran")
+                                    </td>
+                                    
+                                    <td>
+                                        <span class="badge bg-light text-dark border">#@(rating.OrderId)</span>
+                                    </td>
+                                    
+                                    <td>
+                                        <i class="bi bi-person text-muted"></i> @(rating.Order?.User?.Email ?? "Anonim Müşteri")
+                                    </td>
+                                    
+                                    <td>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
+                                                <i class="bi bi-cup-hot-fill me-1"></i> Menü: @rating.MenuScore
+                                            </span>
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1">
+                                                <i class="bi bi-shop me-1"></i> Restoran: @rating.CatererScore
+                                            </span>
+                                            <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle px-2 py-1">
+                                                <i class="bi bi-person-hearts me-1"></i> Servis: @rating.Service
+                                            </span>
+                                            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
+                                                <i class="bi bi-lightning-charge-fill me-1"></i> Hız: @rating.Speed
+                                            </span>
+                                        </div>
+                                    </td>
+                                    
+                                    <td class="text-wrap" style="max-width: 250px;">
+                                        @(string.IsNullOrEmpty(rating.Comment) ? "-" : rating.Comment)
+                                    </td>
+                                    
+                                    <td class="text-muted">
+                                        @rating.CreatedAt.ToString("dd.MM.yyyy HH:mm")
+                                    </td>
+                                    
+                                    <td class="text-center">
+                                        <form asp-controller="Admin" asp-action="DeleteRating" asp-route-id="@rating.RatingId" method="post" onsubmit="return confirm('Bu değerlendirmeyi kalıcı olarak silmek istediğinize emin misiniz?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-trash3"></i> Sil
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

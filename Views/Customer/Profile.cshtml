@@ -1,0 +1,93 @@
+@model project.Models.User
+@{
+    ViewData["Title"] = "Profilim";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            <div class="card shadow-sm border-0 rounded-3">
+                <div class="card-header bg-primary text-white fw-bold py-3">
+                    <i class="bi bi-person-circle me-1"></i> Müşteri Profil Bilgilerim
+                </div>
+                <div class="card-body p-4 bg-light">
+                    <form asp-action="Profile" asp-controller="Customer" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-dark small">Adınız Soyadınız</label>
+                                <input type="text" name="fullName" class="form-control" value="@Model.FullName" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-dark small">E-Posta Adresi</label>
+                                <input type="email" name="email" class="form-control" value="@Model.Email" required />
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-dark small">Yeni Şifre Belirle <span class="text-muted fw-normal">(Değiştirmek istemiyorsanız boş bırakın)</span></label>
+                            <input type="password" name="newPassword" class="form-control" placeholder="••••••••" minlength="6" />
+                        </div>
+
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-body bg-white rounded-3">
+                                <h6 class="fw-bold text-primary mb-3"><i class="bi bi-geo-alt-fill"></i> Teslimat Koordinatlarım</h6>
+                                <div class="row g-3">
+                                    <div class="col-md-5">
+                                        <label class="form-label small text-muted">Enlem (Latitude)</label>
+                                        <input type="text" id="latStr" name="latStr" class="form-control form-control-sm" value="@(Model.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture))" />
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label small text-muted">Boylam (Longitude)</label>
+                                        <input type="text" id="lngStr" name="lngStr" class="form-control form-control-sm" value="@(Model.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture))" />
+                                    </div>
+                                    <div class="col-md-2 d-flex align-items-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold" onclick="getLiveLocation()" title="Anlık Konumumu Çek">
+                                            <i class="bi bi-crosshair"></i> Bul
+                                        </button>
+                                    </div>
+                                </div>
+                                <small class="text-muted d-block mt-2" style="font-size: 0.75rem;">Siparişlerinizin size doğru şekilde ulaşabilmesi ve size en yakın restoranların listelenebilmesi için konumunuzun güncel olması önemlidir.</small>
+                            </div>
+                        </div>
+
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm">
+                                <i class="bi bi-save-fill me-1"></i> Değişiklikleri Kaydet
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function getLiveLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function (pos) {
+                        document.getElementById('latStr').value = pos.coords.latitude;
+                        document.getElementById('lngStr').value = pos.coords.longitude;
+                        alert("Konumunuz başarıyla tespit edildi! Değişiklikleri kaydet butonuna basmayı unutmayın.");
+                    },
+                    function () {
+                        alert("Tarayıcınızdan konum erişim izni vermediğiniz için işlem başarısız oldu.");
+                    }
+                );
+            }
+        }
+    </script>
+}

@@ -1,0 +1,59 @@
+@model List<project.Models.User>
+@{ ViewData["Title"] = "Tedarikçi Yönetimi"; }
+
+<div class="container-fluid mt-4">
+    <h3 class="mb-4"><i class="bi bi-shop"></i> Tedarikçi (Restoran) Yönetimi</h3>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success"><i class="bi bi-check-circle"></i> @TempData["Success"]</div>
+    }
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0 table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Restoran Adı</th>
+                        <th>E-Posta</th>
+                        <th>E-Posta Doğrulaması</th>
+                        <th>Onay Durumu</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var caterer in Model)
+                    {
+                        <tr>
+                            <td class="fw-bold">@caterer.FullName</td>
+                            <td>@caterer.Email</td>
+                            <td>
+                                @if(caterer.IsEmailVerified) { <span class="badge bg-success">Doğrulandı</span> }
+                                else { <span class="badge bg-danger">Doğrulanmadı</span> }
+                            </td>
+                            <td>
+                                @if (caterer.IsApproved) { <span class="badge bg-primary">Aktif Onaylı</span> }
+                                else { <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Onay Bekliyor</span> }
+                            </td>
+                            <td>
+                                <form method="post" class="d-inline">
+                                    <input type="hidden" name="id" value="@caterer.UserId" />
+                                    @if (!caterer.IsApproved)
+                                    {
+                                        <button type="submit" asp-action="ApproveCaterer" class="btn btn-sm btn-success fw-bold me-1">
+                                            <i class="bi bi-check-lg"></i> Başvuruyu Onayla
+                                        </button>
+                                    }
+                                    <button type="submit" asp-action="ToggleUserStatus" class="btn btn-sm @(caterer.IsApproved ? "btn-danger" : "btn-secondary")" onclick="return confirm('Bu hesabın erişim durumunu değiştirmek istediğinize emin misiniz?');">
+                                        <i class="bi @(caterer.IsApproved ? "bi-ban" : "bi-unlock-fill")"></i>
+                                        @(caterer.IsApproved ? "Erişimi Engelle" : "Erişimi Aç")
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

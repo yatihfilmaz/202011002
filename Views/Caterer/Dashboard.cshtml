@@ -1,0 +1,289 @@
+@model List<project.Models.Order>
+@using System.Security.Claims
+@{
+ViewData["Title"] = "Tedarikçi Paneli";
+
+// Geçerli kullanıcının (restoranın) ID'sini alıyoruz
+    var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+int currentUserId = int.TryParse(userIdStr, out var id) ? id : 0;
+}
+
+<div class="container-fluid mt-4">
+    <h2 class="mb-4"><i class="bi bi-shop"></i> Tedarikçi Paneli</h2>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-info text-white shadow h-100 border-0">
+                <div class="card-body">
+                    <h5 class="card-title">Toplam Sipariş</h5>
+                    <h2 class="fw-bold">@ViewBag.TotalOrders</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white shadow h-100 border-0">
+                <div class="card-body">
+                    <h5 class="card-title">Tamamlanan Siparişler</h5>
+                    <h2 class="fw-bold">@ViewBag.CompletedOrders</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-primary text-white shadow h-100 border-0">
+                <div class="card-body">
+                    <h5 class="card-title">Toplam Kazanç</h5>
+                    <h2 class="fw-bold">@ViewBag.TotalRevenue.ToString("C2")</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    }
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-dark text-white fw-bold py-3">
+            <i class="bi bi-list-task"></i> Sipariş Yönetim Listesi
+        </div>
+        <div class="card-body p-0">
+            @if (Model == null || Model.Count == 0)
+            {
+            <div class="p-5 text-center text-muted">Şu anda sistemde kayıtlı siparişiniz bulunmamaktadır.</div>
+            }
+            else
+            {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th>Sipariş No</th>
+                        <th>Müşteri</th>
+                        <th>Tarih</th>
+                        <th>Tutar</th>
+                        <th>Mevcut Durum</th>
+                        <th>Durum Güncelle</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var order in Model)
+                    {
+                    var isCompleted = order.Status == "Tamamlandı";
+                    var isCanceled = order.Status == "İptal Edildi";
+                    var isEnded = isCompleted || isCanceled;
+
+                    string rowClass = "";
+                    if (isCompleted) rowClass = "table-success text-muted";
+                    else if (isCanceled) rowClass = "table-danger text-muted";
+
+                    var rowStyle = isEnded ? "opacity: 0.60; transition: opacity 0.3s;" : "";
+
+                    <tr class="@rowClass" style="@rowStyle">
+                        <td  class="fw-bold">#@order.OrderId</td>
+                        <td>@order.User?.FullName</td>
+                        <td>@order.OrderDate?.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td class="fw-bold @(isEnded ? "text-secondary" : "text-success")">
+                            @order.TotalAmount.ToString("C2")
+                        </td>
+                        <td>
+                            @{
+                            var badgeClass = order.Status switch
+                            {
+                            "Tamamlandı" => "bg-success",
+                            "İptal Edildi" => "bg-danger",
+                            "Hazırlanıyor" => "bg-warning text-dark",
+                            "Yolda" => "bg-info text-dark",
+                            _ => "bg-secondary"
+                            };
+                            }
+                            <span class="badge @badgeClass fs-6 shadow-sm">
+                                    @order.Status
+                                </span>
+                        </td>
+                        <td>
+                            <form asp-action="UpdateOrderStatus" method="post" class="d-flex align-items-center gap-2">
+                                <input type="hidden" name="orderId" value="@order.OrderId"/>
+
+                                <select name="newStatus" class="form-select form-select-sm" style="width: 140px;">
+                                    <option value="Hazırlanıyor" selected="@(order.Status == "Hazırlanıyor" ? "selected" : null)">Hazırlanıyor</option>
+                                    <option value="Yolda" selected="@(order.Status == "Yolda" ? "selected" : null)">Yolda</option>
+                                    <option value="Tamamlandı" selected="@(order.Status == "Tamamlandı" ? "selected" : null)">Tamamlandı</option>
+                                    <option value="İptal Edildi" selected="@(order.Status == "İptal Edildi" ? "selected" : null)">İptal Edildi</option>
+                                </select>
+
+                                <button type="submit" class="btn btn-sm btn-primary shadow-sm">Uygula</button>
+
+                                <button type="button" onclick="openChat(@order.OrderId, '@(order.User?.FullName?.Replace("'", "\\'") ?? "Müşteri")')" class="btn btn-sm btn-outline-primary fw-bold shadow-sm">
+                                    <i class="bi bi-chat-dots me-1"></i> Müşteriye Mesaj
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            }
+        </div>
+    </div>
+</div>
+
+<div id="liveChatBox" class="d-none shadow-lg rounded-top" style="position: fixed; bottom: 0; right: 30px; width: 350px; z-index: 1060; background: #fff; border: 1px solid #ccc; border-bottom: none; display: flex; flex-direction: column;">
+    <div class="bg-dark text-white p-3 rounded-top d-flex justify-content-between align-items-center" style="cursor: pointer;" onclick="toggleChatBody()">
+        <div>
+            <i class="bi bi-chat-dots-fill text-warning me-2"></i>
+            <span id="chatOtherPartyName" class="fw-bold">Müşteri</span>
+            <small class="d-block text-white-50" style="font-size: 0.75rem;">Sipariş #<span id="chatOrderIdDisplay"></span></small>
+        </div>
+        <div>
+            <button type="button" class="btn-close btn-close-white" aria-label="Kapat" onclick="closeLiveChat(event)"></button>
+        </div>
+    </div>
+
+    <div id="chatBodyWrapper">
+        <div id="chatMessagesArea" class="p-3" style="height: 350px; overflow-y: auto; background-color: #f8f9fa;">
+        </div>
+
+        <div class="p-2 border-top bg-white">
+            <input type="hidden" id="chatCurrentOrderId" value="0" />
+            <div class="input-group">
+                <input type="text" id="chatMessageInput" class="form-control form-control-sm border-dark" placeholder="Müşteriye yanıt yazın..." onkeypress="handleChatEnter(event)">
+                <button class="btn btn-dark btn-sm px-3 fw-bold" type="button" onclick="sendChatMsg()">
+                    <i class="bi bi-send-fill text-warning"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+<script>
+    const currentUserId = "@currentUserId";
+
+    // 1. SIGNALR BAĞLANTISI
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/chatHub")
+        .withAutomaticReconnect()
+        .build();
+
+    connection.start().then(function () {
+        console.log("Restoran SignalR'a bağlandı!");
+    }).catch(function (err) {
+        console.error("SignalR Bağlantı hatası: ", err.toString());
+    });
+
+    // 2. CANLI MESAJ GELDİĞİNDE
+    connection.on("ReceiveMessage", function (incomingOrderId, senderId, senderName, message, time) {
+        var activeOrderId = document.getElementById("chatCurrentOrderId").value;
+
+        // Eğer açık olan sohbet penceresi, mesajın geldiği siparişe aitse ekrana çiz
+        if (activeOrderId === incomingOrderId.toString()) {
+            appendMessage(senderId.toString(), senderName, message, time);
+        }
+    });
+
+    // 3. SOHBETİ AÇ VE GEÇMİŞİ ÇEK (PARTIAL YERİNE JSON)
+    function openChat(orderId, customerName) {
+        document.getElementById("chatCurrentOrderId").value = orderId;
+        document.getElementById("chatOrderIdDisplay").innerText = orderId;
+        document.getElementById("chatOtherPartyName").innerText = customerName;
+
+        document.getElementById("liveChatBox").classList.remove("d-none");
+        $("#chatBodyWrapper").show(); // Kapalıysa aç
+
+        const chatArea = document.getElementById("chatMessagesArea");
+        chatArea.innerHTML = '<div class="text-center text-muted small mt-5"><div class="spinner-border spinner-border-sm text-dark mb-2"></div><br/>Mesajlar yükleniyor...</div>';
+
+        // SignalR Odasına Katıl
+        connection.invoke("JoinOrder", orderId.toString()).catch(function (err) {
+            console.error("Odaya katılma hatası:", err.toString());
+        });
+
+        // YENİ JSON API'DEN GEÇMİŞİ ÇEK
+        fetch(`/Chat/GetHistory?orderId=${orderId}`)
+            .then(res => res.json())
+            .then(data => {
+                chatArea.innerHTML = ""; // Yükleniyor animasyonunu temizle
+                if (data.length === 0) {
+                    chatArea.innerHTML = "<div class='text-center mt-4 text-muted small' id='emptyChatPlaceholder'>Henüz mesaj yok.</div>";
+                } else {
+                    data.forEach(m => appendMessage(m.senderId.toString(), m.senderName, m.message, m.time));
+                }
+            })
+            .catch(err => {
+                chatArea.innerHTML = "<div class='text-center mt-4 text-danger small'>Sohbet geçmişi alınamadı.</div>";
+                console.error("Hata:", err);
+            });
+    }
+
+    // 4. MESAJI HTML'E EKLEME FONKSİYONU
+    function appendMessage(senderIdStr, senderName, message, time) {
+        const isMe = senderIdStr === currentUserId;
+        let msgHtml = "";
+
+        // Boş placeholder varsa kaldır
+        const emptyPlaceholder = document.getElementById("emptyChatPlaceholder");
+        if (emptyPlaceholder) emptyPlaceholder.remove();
+
+        if (isMe) {
+            // Sizin Tasarımınız (Koyu Renk)
+            msgHtml = `
+                <div class="d-flex justify-content-end mb-2">
+                    <div class="bg-dark text-white px-3 py-2 rounded-3 shadow-sm" style="max-width: 85%;">
+                        <div class="small fw-bold mb-1 text-warning" style="font-size: 0.75rem;">Siz (Restoran)</div>
+                        <div style="font-size: 0.9rem; word-break: break-word;">${message}</div>
+                        <div class="text-end mt-1" style="font-size: 0.65rem; opacity: 0.7;">${time}</div>
+                    </div>
+                </div>`;
+        } else {
+            // Müşteri Tasarımı (Açık Renk)
+            msgHtml = `
+                <div class="d-flex justify-content-start mb-2">
+                    <div class="bg-white border text-dark px-3 py-2 rounded-3 shadow-sm" style="max-width: 85%;">
+                        <div class="small fw-bold mb-1" style="font-size: 0.75rem; opacity: 0.8;">${senderName}</div>
+                        <div style="font-size: 0.9rem; word-break: break-word;">${message}</div>
+                        <div class="text-end mt-1" style="font-size: 0.65rem; opacity: 0.7;">${time}</div>
+                    </div>
+                </div>`;
+        }
+
+        const chatArea = document.getElementById("chatMessagesArea");
+        chatArea.insertAdjacentHTML('beforeend', msgHtml);
+        chatArea.scrollTop = chatArea.scrollHeight; // Scroll'u aşağı kaydır
+    }
+
+    // 5. YENİ MESAJ GÖNDERME
+    function sendChatMsg() {
+        const orderId = document.getElementById("chatCurrentOrderId").value;
+        const input = document.getElementById("chatMessageInput");
+        const msg = input.value.trim();
+
+        if (msg !== "" && orderId !== "0") {
+            connection.invoke("SendMessage", orderId.toString(), msg).catch(function (err) {
+                console.error("Mesaj gönderilemedi: ", err.toString());
+            });
+
+            input.value = "";
+            input.focus();
+        }
+    }
+
+    function handleChatEnter(e) {
+        if (e.key === 'Enter') sendChatMsg();
+    }
+
+    function closeLiveChat(event) {
+        if (event) event.stopPropagation();
+        document.getElementById("liveChatBox").classList.add("d-none");
+    }
+
+    function toggleChatBody() {
+        $("#chatBodyWrapper").slideToggle("fast");
+    }
+</script>
+}

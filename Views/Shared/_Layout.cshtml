@@ -1,0 +1,143 @@
+﻿@using Microsoft.AspNetCore.Http
+@using project.Extensions  
+@using project.Models      
+@inject IHttpContextAccessor HttpContextAccessor
+
+@using System.Threading
+
+
+@{
+    var currentCulture = Thread.CurrentThread.CurrentUICulture.Name;
+    int cartItemCount = 0;
+    // Session'dan sepeti okuyoruz
+    var cart = HttpContextAccessor.HttpContext?.Session.GetObjectFromJson<List<CartItem>>("Cart");
+    if (cart != null)
+    {
+        // Sepetteki toplam ürün adedini hesaplıyoruz
+        cartItemCount = cart.Sum(c => c.Quantity); 
+    }
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>@ViewData["Title"] - project</title>
+    <script type="importmap"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/7.1.0/mdb.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
+    <link rel="stylesheet" href="~/project.styles.css" asp-append-version="true"/>
+</head>
+<body>
+<header>
+    <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <div class="container-fluid">
+            <a class="navbar-brand text-primary fw-bold" asp-area="" asp-controller="Home" asp-action="Index">project</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                    aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                <ul class="navbar-nav flex-grow-1">
+                   
+                   
+                </ul>
+                <ul class="navbar-nav ms-auto align-items-center gap-2">
+                    <li class="nav-item d-flex align-items-center">
+                        @if (User.IsInRole("Customer"))
+                        {
+                            <a class="nav-link text-dark fw-bold position-relative d-inline-flex align-items-center py-1 px-2 border rounded bg-light" asp-controller="Cart" asp-action="Index">
+                                <i class="bi bi-cart3 fs-5 me-1 text-primary"></i> Sepetim
+                                @if (cartItemCount > 0)
+                                {
+                                    <span class="badge bg-danger rounded-pill ms-1" style="font-size: 0.70rem;">
+                                        @cartItemCount
+                                    </span>
+                                }
+                            </a>
+                        }
+                    </li>
+
+                    @if (User.Identity != null && User.Identity.IsAuthenticated)
+                    {
+                        <li class="nav-item dropdown d-flex align-items-center">
+                            <a class="nav-link dropdown-toggle text-dark fw-bold d-flex align-items-center py-1" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="line-height: 1;">
+                                <i class="bi bi-person-circle fs-5 me-1 text-secondary"></i> Merhaba, @User.Identity.Name
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="userDropdown">
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="Index"><i class="bi bi-speedometer2"></i> Yönetici Paneli</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="Caterers"><i class="bi bi-shop"></i> Tedarikçiler</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="Orders"><i class="bi bi-card-checklist"></i> Sipariş Yönetimi</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="Users"><i class="bi bi-people"></i> Kullanıcılar</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="Logs"><i class="bi bi-journal-text"></i> Sistem Logları</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="Ratings"><i class="bi bi-star-fill text-warning"></i> Değerlendirmeler</a></li>
+                                }
+                                else if (User.IsInRole("Caterer"))
+                                {
+                                    <li><a class="dropdown-item" asp-controller="Caterer" asp-action="Dashboard"><i class="bi bi-speedometer2"></i> Tedarikçi Paneli</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Caterer" asp-action="Index"><i class="bi bi-shop"></i> Menü Yönetimi</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Caterer" asp-action="Create"><i class="bi bi-plus-circle"></i> Yeni Yemek Ekle</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Caterer" asp-action="CreateCombo"><i class="bi bi-box-seam"></i> Menü Ekle</a></li>
+                                }
+                                else
+                                {
+                                    <li><a class="dropdown-item" asp-controller="Customer" asp-action="Dashboard"><i class="bi bi-basket3"></i> Siparişlerim</a></li>
+                                }
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger fw-bold" asp-controller="Auth" asp-action="Logout"><i class="bi bi-box-arrow-right"></i> Güvenli Çıkış</a></li>
+                            </ul>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item d-flex align-items-center">
+                            <a class="btn btn-sm btn-outline-primary me-1 fw-bold" asp-controller="Auth" asp-action="Login">Giriş Yap</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="btn btn-primary btn-sm fw-bold px-3 dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                                Kayıt Ol
+                            </a>
+    
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
+                                <li>
+                                    <a class="dropdown-item" asp-controller="Auth" asp-action="Register">
+                                        <i class="bi bi-person me-2"></i> Müşteri Kaydı
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" asp-controller="Auth" asp-action="CatererApply">
+                                        <i class="bi bi-shop me-2"></i> Restoran Başvurusu
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </nav>
+</header>
+<div class="container">
+    <main role="main" class="pb-3">
+        @RenderBody()
+    </main>
+</div>
+
+<footer class="border-top footer text-muted">
+    
+</footer>
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
+

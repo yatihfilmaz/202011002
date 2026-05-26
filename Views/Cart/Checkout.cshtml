@@ -1,0 +1,123 @@
+@model List<project.Models.CartItem>
+@{
+    ViewData["Title"] = "Ödemeyi Tamamla";
+    
+    // Sepetin genel toplamını hesaplıyoruz (Yemek Fiyatı + Seçenek Fiyatları) * Adet
+    decimal grandTotal = Model?.Sum(item => 
+        (item.Price + (item.SelectedCustomizations?.Sum(c => c.PriceChange) ?? 0)) * item.Quantity
+    ) ?? 0;
+}
+
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-7 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom pb-0 pt-4">
+                    <h4 class="fw-bold"><i class="bi bi-credit-card"></i> Ödeme Bilgileri</h4>
+                    <p class="text-muted small">Bu bir simülasyondur, lütfen gerçek kart bilgilerinizi girmeyiniz!</p>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-controller="Cart" asp-action="CheckoutProcess" method="post">
+                        
+                        <h5 class="mb-3">Teslimat Adresi</h5>
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Açık Adresiniz</label>
+                            <textarea class="form-control" rows="2" required placeholder="Örn: Üniversite Kampüsü, A Blok Kat: 3"></textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label text-muted">Sipariş Notu (Opsiyonel)</label>
+                            <input type="text" class="form-control" placeholder="Örn: Zile basmayın, kapıya asın." />
+                        </div>
+
+                        <hr class="mb-4" />
+
+                        <h5 class="mb-3">Kart Bilgileri</h5>
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Kart Üzerindeki İsim</label>
+                            <input type="text" class="form-control" required placeholder="AD SOYAD" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Kart Numarası</label>
+                            <input type="text" class="form-control" required placeholder="0000 0000 0000 0000" maxlength="19" />
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <label class="form-label text-muted">Son Kul. Tarihi</label>
+                                <input type="text" class="form-control" required placeholder="AA/YY" maxlength="5" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-muted">CVV</label>
+                                <input type="text" class="form-control" required placeholder="123" maxlength="3" />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-lg w-100 fw-bold shadow-sm">
+                            <i class="bi bi-lock-fill"></i> @grandTotal.ToString("C2") Öde ve Siparişi Tamamla
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            <div class="card shadow-sm border-0 bg-light">
+                <div class="card-header bg-light border-bottom pt-4 pb-0">
+                    <h4 class="fw-bold"><i class="bi bi-bag-check"></i> Sipariş Özeti</h4>
+                </div>
+                <div class="card-body p-4">
+                    <ul class="list-group list-group-flush mb-3 bg-transparent">
+                        @foreach (var item in Model)
+                        {
+                            // Ürünün özelliklerinin toplam fiyatını ve satır toplamını hesaplıyoruz
+                            decimal extrasTotal = item.SelectedCustomizations?.Sum(c => c.PriceChange) ?? 0;
+                            decimal rowTotal = (item.Price + extrasTotal) * item.Quantity;
+
+                            <li class="list-group-item d-flex justify-content-between lh-sm bg-transparent px-0">
+                                <div>
+                                    <h6 class="my-0 fw-bold text-dark">@item.Title</h6>
+                                    <small class="text-muted fw-medium">Adet: @item.Quantity</small>
+                                    
+                                    @if (item.SelectedCustomizations != null && item.SelectedCustomizations.Any())
+                                    {
+                                        <ul class="list-unstyled mt-1 mb-0 ps-2" style="border-left: 2px solid #dee2e6;">
+                                            @foreach (var opt in item.SelectedCustomizations)
+                                            {
+                                                <li class="text-secondary" style="font-size: 0.8rem;">
+                                                    <i class="bi bi-dash"></i> @opt.Name
+                                                    @if (opt.PriceChange > 0)
+                                                    {
+                                                        <span class="text-success">(+@opt.PriceChange.ToString("C2"))</span>
+                                                    }
+                                                    else if (opt.PriceChange < 0)
+                                                    {
+                                                        <span class="text-danger">(@opt.PriceChange.ToString("C2"))</span>
+                                                    }
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                </div>
+                                <span class="text-dark fw-bold">@rowTotal.ToString("C2")</span>
+                            </li>
+                        }
+                    </ul>
+
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Ara Toplam</span>
+                        <span class="fw-medium">@grandTotal.ToString("C2")</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3 text-success">
+                        <span>Teslimat</span>
+                        <span class="fw-bold">Ücretsiz</span>
+                    </div>
+                    <hr />
+                    <div class="d-flex justify-content-between fs-5 fw-bold">
+                        <span>Toplam</span>
+                        <span class="text-primary">@grandTotal.ToString("C2")</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

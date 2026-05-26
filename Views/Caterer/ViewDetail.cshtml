@@ -1,0 +1,65 @@
+@model project.Models.Order
+@{
+    // Sipariş durumu kontrolü
+    bool isCompleted = string.Equals(Model.Status?.Trim(), "Tamamlandı", StringComparison.OrdinalIgnoreCase);
+}
+
+<div class="modal-header bg-dark text-white py-3">
+    <h5 class="modal-title fw-bold">
+        <i class="bi bi-receipt-cutoff text-warning"></i> Sipariş Detayları (#@Model.OrderId)
+    </h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+</div>
+
+<div class="modal-body p-4 bg-light">
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-header bg-white fw-bold text-secondary py-3">
+            <i class="bi bi-basket3-fill text-primary me-1"></i> Ürün Listesi
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-clear mb-0 align-middle">
+                    <thead class="table-light text-muted small">
+                        <tr>
+                            <th class="ps-3">Ürün</th>
+                            <th class="text-center">Adet</th>
+                            <th class="text-end pe-3">Tutar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.OrderItems != null && Model.OrderItems.Any())
+                        {
+                            foreach (var item in Model.OrderItems)
+                            {
+                                <tr>
+                                    <td class="ps-3">
+                                        <span class="fw-bold text-dark d-block">@(item.Item?.Title ?? "Yemek")</span>
+    
+                                        @if (item.OrderItemOptions != null && item.OrderItemOptions.Any())
+                                        {
+                                            <div class="small text-muted mt-1 ps-2 border-start border-2 mb-2">
+                                                @foreach (var opt in item.OrderItemOptions)
+                                                {
+                                                    <span class="d-block text-secondary">• @(opt.Option?.Name)</span>
+                                                }
+                                            </div>
+                                        }
+                                    </td>
+                                    <td class="text-center fw-medium">@item.Quantity</td>
+                                    <td class="text-end pe-3 fw-bold text-secondary">@item.UnitPrice.ToString("C2")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-3 bg-light border-top d-flex justify-content-end align-items-center">
+                <span class="fs-5 fw-bold text-success">Genel Toplam: @Model.TotalAmount.ToString("C2")</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-footer bg-light border-0 py-2">
+    <button type="button" class="btn btn-sm btn-secondary fw-bold px-4" data-bs-dismiss="modal">Kapat</button>
+</div>

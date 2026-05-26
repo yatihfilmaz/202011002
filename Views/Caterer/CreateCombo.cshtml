@@ -1,0 +1,154 @@
+@model project.ViewModels.ComboCreateViewModel
+@{
+    ViewData["Title"] = "Yeni Kombinasyon Menü Oluştur";
+    // Controller'dan gelen mevcut yemekler
+    var menuItems = ViewBag.MenuItems as List<project.Models.MenuItem>;
+    var categories = ViewBag.Categories as List<project.Models.Category>;
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-sm border-0 rounded-3 mb-5">
+                <div class="card-header bg-primary text-white py-3">
+                    <h5 class="mb-0"><i class="bi bi-box-seam me-2"></i> Yeni Menü Oluştur</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="CreateCombo" method="post" enctype="multipart/form-data">
+                        
+                        <h6 class="text-primary fw-bold border-bottom pb-2 mb-3">1. Menü Detayları</h6>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Menü Adı</label>
+                                <input asp-for="Title" class="form-control" placeholder="Menü Adı" required />
+                                <span asp-validation-for="Title" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Fiyat (₺)</label>
+                                <input asp-for="Price" type="number" step="0.01" class="form-control" placeholder="0.00" required />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Stok</label>
+                                <input asp-for="StockQuantity" type="number" class="form-control" value="100" required />
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Kategori</label>
+                                <select asp-for="CategoryId" class="form-select">
+                                    <option value="">-- Kategori Seçin --</option>
+                                    @if(categories != null)
+                                    {
+                                        foreach(var cat in categories)
+                                        {
+                                            <option value="@cat.CategoryId">@cat.Name</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Açıklama</label>
+                                <textarea asp-for="Description" class="form-control" rows="2" placeholder="Menü içeriği hakkında kısa bilgi..."></textarea>
+                            </div>
+                        </div>
+
+                        <h6 class="text-primary fw-bold border-bottom pb-2 mb-3 mt-4">2. Menüye Dahil Edilecek Yemekleri Seçin</h6>
+                        <p class="text-muted small mb-3">Müşteriler bu menüyü satın aldıklarında seçtiğiniz yemekler (ve bu yemeklerin alt seçenekleri) birlikte sipariş edilecektir.</p>
+                        
+                        <div class="row g-3">
+                            @if (menuItems != null && menuItems.Any())
+                            {
+                                foreach (var item in menuItems)
+                                {
+                                    <div class="col-md-4">
+                                        <div class="position-relative h-100">
+                                            <input type="checkbox" class="btn-check" id="item_@item.ItemId" name="SelectedItemIds" value="@item.ItemId" autocomplete="off">
+                                            <label class="btn btn-outline-secondary w-100 h-100 text-start p-3 shadow-sm d-flex flex-column justify-content-between" for="item_@item.ItemId" style="border-radius: 12px;">
+                                                <div>
+                                                    <div class="fw-bold fs-6 text-dark mb-1">@item.Title</div>
+                                                    <div class="text-primary fw-bold mb-2">@item.Price.ToString("C2")</div>
+                                                </div>
+                                            </label>
+
+                                            @* Eğer yemeğin ekstra özelleştirmeleri varsa, sağ alta bir bilgi butonu koyuyoruz *@
+                                            @if (item.Customizations != null && item.Customizations.Any())
+                                            {
+                                                <button type="button" class="btn btn-sm btn-info text-white position-absolute bottom-0 end-0 m-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#optionsModal_@item.ItemId" style="border-radius: 8px; z-index: 10;">
+                                                    <i class="bi bi-info-circle"></i> Seçenekler
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="col-12 text-center py-4 text-muted border rounded bg-light">
+                                    <i class="bi bi-inbox fs-2"></i>
+                                    <p class="mt-2 mb-0">Henüz eklenmiş tekil yemeğiniz bulunmuyor.</p>
+                                </div>
+                            }
+                        </div>
+                        <span asp-validation-for="SelectedItemIds" class="text-danger small mt-2 d-block"></span>
+
+                        <div class="text-end mt-5">
+                            <a asp-action="Index" class="btn btn-light me-2">İptal</a>
+                            <button type="submit" class="btn btn-primary fw-bold px-4 shadow"><i class="bi bi-check-circle"></i> Kombinasyon Menüyü Kaydet</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (menuItems != null && menuItems.Any())
+{
+    // Sadece alt seçeneği olan yemekler için modal oluşturuyoruz
+    foreach (var item in menuItems.Where(m => m.Customizations != null && m.Customizations.Any()))
+    {
+        <div class="modal fade" id="optionsModal_@item.ItemId" tabindex="-1" aria-labelledby="modalLabel_@item.ItemId" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title fw-bold text-dark" id="modalLabel_@item.ItemId">
+                            <i class="bi bi-list-stars text-primary me-2"></i> @item.Title <span class="fs-6 text-muted fw-normal">- Alt Seçenekleri</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <p class="text-muted small mb-3">
+                            Müşteriler, menünün içindeki <strong>@item.Title</strong> yemeği için sipariş esnasında aşağıdaki seçenekleri görecektir:
+                        </p>
+                        
+                        <ul class="list-group list-group-flush border-top">
+                            @foreach (var opt in item.Customizations)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-3">
+                                    <span class="fw-medium text-secondary">
+                                        <i class="bi bi-chevron-right small me-2 text-primary"></i> @opt.Name
+                                    </span>
+                                    
+                                    @if (opt.PriceChange > 0)
+                                    {
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-3 py-2">
+                                            +@opt.PriceChange?.ToString("C2")
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle rounded-pill px-3 py-2">
+                                            Ücretsiz
+                                        </span>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                    <div class="modal-footer bg-light border-0">
+                        <button type="button" class="btn btn-secondary fw-bold px-4" data-bs-dismiss="modal">Kapat</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}

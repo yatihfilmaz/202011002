@@ -1,0 +1,237 @@
+@model project.Models.Order
+@{
+    // Puanlamayı View'a alıyoruz
+    var existingRating = ViewBag.ExistingRating as project.Models.Rating;
+    
+    // GÜVENLİ KONTROL: Veritabanındaki boşlukları ve harf duyarlılığını temizleyerek "Tamamlandı" olup olmadığına bakar
+    bool isCompleted = string.Equals(Model.Status?.Trim(), "Tamamlandı", StringComparison.OrdinalIgnoreCase);
+}
+
+<div class="modal-header bg-dark text-white py-3">
+    <h5 class="modal-title fw-bold"><i class="bi bi-receipt-cutoff text-warning"></i> Sipariş Detay Bilgileri (#@Model.OrderId)</h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+</div>
+
+<div class="modal-body p-4 bg-light">
+    <div class="card shadow-sm border-0 rounded-3 mb-3">
+        <div class="card-header bg-white fw-bold text-secondary py-3">
+            <i class="bi bi-basket3-fill text-primary me-1"></i> Sipariş Edilen Ürünler
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-clear mb-0 align-middle">
+                    <thead class="table-light text-muted small">
+                        <tr>
+                            <th class="ps-3">Ürün Açıklaması</th>
+                            <th class="text-center">Adet</th>
+                            <th class="text-end pe-3">Tutar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.OrderItems != null && Model.OrderItems.Any())
+                        {
+                            foreach (var item in Model.OrderItems)
+                            {
+                                <tr>
+                                    <td class="ps-3">
+                                        <span class="fw-bold text-dark d-block">@(item.Item?.Title ?? "Yemek")</span>
+    
+                                        @if (item.OrderItemOptions != null && item.OrderItemOptions.Any())
+                                        {
+                                            <div class="small text-muted mt-1 ps-2 border-start border-2 mb-2">
+                                                @foreach (var opt in item.OrderItemOptions)
+                                                {
+                                                    <span class="d-block text-secondary">• @(opt.Option?.Name)</span>
+                                                }
+                                            </div>
+                                        }
+
+                                        @if (isCompleted)
+                                        {
+                                            var itmRts = ViewBag.ItemRatings as List<project.Models.ItemRating>;
+                                            var myRt = itmRts?.FirstOrDefault(r => r.ItemId == item.ItemId);
+
+                                            if(myRt != null)
+                                            {
+                                                <div class="badge bg-light text-dark border mt-1">
+                                                    <i class="bi bi-star-fill text-warning"></i> Sizin Puanınız: @myRt.Score/5
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="input-group input-group-sm mt-1" style="max-width: 140px;" id="rate_box_@item.ItemId">
+                                                    <select class="form-select border-warning text-dark" id="scr_@item.ItemId">
+                                                        <option value="5">5 ⭐</option>
+                                                        <option value="4">4 ⭐</option>
+                                                        <option value="3">3 ⭐</option>
+                                                        <option value="2">2 ⭐</option>
+                                                        <option value="1">1 ⭐</option>
+                                                    </select>
+                                                    <button type="button" class="btn btn-warning text-dark fw-bold" onclick="rateItemAjax(@Model.OrderId, @item.ItemId)">
+                                                        <i class="bi bi-check2"></i>
+                                                    </button>
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <div class="text-muted small mt-1 fst-italic" style="font-size: 0.8rem;">
+                                                <i class="bi bi-clock-history"></i> Teslimat sonrasında puanlanabilir
+                                            </div>
+                                        }
+                                    </td>
+                                    <td class="text-center fw-medium">@item.Quantity</td>
+                                    <td class="text-end pe-3 fw-bold text-secondary">@item.UnitPrice.ToString("C2")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-3 bg-light border-top d-flex justify-content-between align-items-center">
+                <span class="text-muted small">Ödeme Türü: Kredi / Banka Kartı</span>
+                <span class="fs-5 fw-bold text-success">Genel Toplam: @Model.TotalAmount.ToString("C2")</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 rounded-3 mb-3">
+        <div class="card-header bg-white fw-bold text-secondary py-3">
+            <i class="bi bi-file-earmark-text-fill text-info me-1"></i> Dökümanlar ve Canlı Destek
+        </div>
+        <div class="card-body py-3">
+            <div class="row g-2">
+                <div class="col-sm-4">
+                    <button type="button" onclick="openLiveChat(@Model.OrderId, '@(Model.Caterer?.FullName?.Replace("'", "\\'") ?? "Restoran")')" class="btn btn-outline-dark w-100 fw-bold py-2 btn-sm">
+                        <i class="bi bi-chat-left-dots-fill text-primary me-1"></i> Restorana Mesaj
+                    </button>
+                </div>
+                <div class="col-sm-4">
+                    <a href="@Url.Action("ViewReceipt", "Customer", new { id = Model.OrderId })" target="_blank" class="btn btn-outline-secondary w-100 fw-bold py-2 btn-sm">
+                        <i class="bi bi-printer-fill text-dark me-1"></i> E-Fiş Görüntüle
+                    </a>
+                </div>
+                <div class="col-sm-4">
+                    <a href="@Url.Action("ViewAgreement", "Customer", new { id = Model.OrderId })" target="_blank" class="btn btn-outline-secondary w-100 fw-bold py-2 btn-sm">
+                        <i class="bi bi-file-pdf-fill text-danger me-1"></i> Sözleşme / Fatura
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-header bg-white fw-bold text-secondary py-3">
+            <i class="bi bi-star-fill text-warning me-1"></i> Sipariş Değerlendirme Sistemi
+        </div>
+        <div class="card-body">
+            
+            @if (!isCompleted)
+            {
+                <div class="alert alert-warning mb-0 small border-0 shadow-sm rounded-3">
+                    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> 
+                    Siparişiniz henüz teslim edilmediği için değerlendirme yapamazsınız. 
+                    Restoran sipariş durumunu <strong>"Tamamlandı"</strong> olarak güncellediğinde form açılacaktır.
+                </div>
+            }
+            else 
+            {
+                if (existingRating != null)
+                {
+                    <div class="bg-success bg-opacity-10 text-success border border-success-subtle p-3 rounded-3 text-center mb-2">
+                        <i class="bi bi-check-circle-fill me-1"></i> Bu siparişi daha önce başarıyla değerlendirdiniz.
+                    </div>
+                    <div class="row text-center g-2 mt-2">
+                        <div class="col-3 border-end">
+                            <small class="text-muted d-block">Lezzet</small>
+                            <strong class="fs-5 text-dark">@existingRating.MenuScore / 5</strong>
+                        </div>
+                        <div class="col-3 border-end">
+                            <small class="text-muted d-block">Hız</small>
+                            <strong class="fs-5 text-dark">@existingRating.Speed / 5</strong>
+                        </div>
+                        <div class="col-3 border-end">
+                            <small class="text-muted d-block">Servis</small>
+                            <strong class="fs-5 text-dark">@existingRating.Service / 5</strong>
+                        </div>
+                        <div class="col-3">
+                            <small class="text-muted d-block">Restoran</small>
+                            <strong class="fs-5 text-dark">@existingRating.CatererScore / 5</strong>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(existingRating.Comment))
+                    {
+                        <div class="mt-3 p-2 bg-white rounded border border-light-subtle fst-italic text-secondary small">
+                            " @existingRating.Comment "
+                        </div>
+                    }
+                }
+                else
+                {
+                    <form action="@Url.Action("SubmitRating", "Customer")" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="orderId" value="@Model.OrderId"/>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-sm-6">
+                                <label class="form-label small fw-bold text-dark">Yemek Lezzeti</label>
+                                <select name="menuScore" class="form-select form-select-sm" required>
+                                    <option value="5">⭐⭐⭐⭐⭐ (5 - Harika)</option>
+                                    <option value="4">⭐⭐⭐⭐ (4 - İyi)</option>
+                                    <option value="3">⭐⭐⭐ (3 - Orta)</option>
+                                    <option value="2">⭐⭐ (2 - Kötü)</option>
+                                    <option value="1">⭐ (1 - Berbat)</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label small fw-bold text-dark">Teslimat Hızı</label>
+                                <select name="speed" class="form-select form-select-sm" required>
+                                    <option value="5">⭐⭐⭐⭐⭐ (5 - Çok Hızlı)</option>
+                                    <option value="4">⭐⭐⭐⭐ (4 - Hızlı)</option>
+                                    <option value="3">⭐⭐⭐ (3 - Normal)</option>
+                                    <option value="2">⭐⭐ (2 - Yavaş)</option>
+                                    <option value="1">⭐ (1 - Çok Yavaş)</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label small fw-bold text-dark">Kurye Servisi & Nezaket</label>
+                                <select name="service" class="form-select form-select-sm" required>
+                                    <option value="5">⭐⭐⭐⭐⭐ (5 - Kusursuz)</option>
+                                    <option value="4">⭐⭐⭐⭐ (4 - Başarılı)</option>
+                                    <option value="3">⭐⭐⭐ (3 - Yeterli)</option>
+                                    <option value="2">⭐⭐ (2 - Zayıf)</option>
+                                    <option value="1">⭐ (1 - Çok Kötü)</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label small fw-bold text-dark">Restoran Hizmeti</label>
+                                <select name="catererScore" class="form-select form-select-sm" required>
+                                    <option value="5">⭐⭐⭐⭐⭐ (5 - Mükemmel)</option>
+                                    <option value="4">⭐⭐⭐⭐ (4 - Özenli)</option>
+                                    <option value="3">⭐⭐⭐ (3 - Standart)</option>
+                                    <option value="2">⭐⭐ (2 - İsteksiz)</option>
+                                    <option value="1">⭐ (1 - Kalitesiz)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-dark">Deneyiminizi Yorumlayın (İsteğe Bağlı)</label>
+                            <textarea name="comment" class="form-control form-control-sm" rows="2" maxlength="500" placeholder="Yemekler sıcak mıydı? Servis kalitesini beğendiniz mi?..."></textarea>
+                        </div>
+
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-sm btn-success fw-bold px-4 shadow-sm">
+                                <i class="bi bi-send-check me-1"></i> Değerlendirmeyi Gönder
+                            </button>
+                        </div>
+                    </form>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+<div class="modal-footer bg-light border-0 py-2">
+    <button type="button" class="btn btn-sm btn-secondary fw-bold px-4" data-bs-dismiss="modal">Kapat</button>
+</div>

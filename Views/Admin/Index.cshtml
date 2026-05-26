@@ -1,0 +1,75 @@
+@model List<project.Models.SystemLog>
+@{ ViewData["Title"] = "Admin Dashboard"; }
+
+<div class="container-fluid mt-4">
+    <h2 class="mb-4"><i class="bi bi-speedometer2"></i> Sistem Özeti (Dashboard)</h2>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h6 class="text-uppercase fw-bold"><i class="bi bi-people-fill"></i> Toplam Müşteri</h6>
+                    <h2 class="display-5 fw-bold mb-0">@ViewBag.TotalUsers</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h6 class="text-uppercase fw-bold"><i class="bi bi-shop"></i> Toplam Restoran / Onay bekleyen</h6>
+            
+                    <h2 class="display-5 fw-bold mb-0">
+                        @ViewBag.TotalCaterers 
+                        <span class="fs-4 fw-normal text-muted">(@ViewBag.PendingCaterers)</span>
+                    </h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h6 class="text-uppercase fw-bold"><i class="bi bi-cash-stack"></i> Toplam Hacim</h6>
+                    <h2 class="display-6 fw-bold mb-0 mt-2">@ViewBag.TotalRevenue.ToString("C0")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-dark shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h6 class="text-uppercase fw-bold"><i class="bi bi-basket-fill"></i> Toplam Sipariş</h6>
+                    <h2 class="display-5 fw-bold mb-0">@ViewBag.TotalOrders</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-activity"></i> Son Sistem Aktiviteleri</span>
+            <a asp-action="Logs" class="btn btn-sm btn-light text-dark fw-bold">Tümünü Gör</a>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-striped table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tarih</th>
+                        <th>İşlem Yapan</th>
+                        <th>Aksiyon</th>
+                        <th>Açıklama</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in Model)
+                    {
+                        <tr>
+                            <td class="text-muted small">@log.Timestamp?.ToString("dd.MM.yyyy HH:mm")</td>
+                            <td class="fw-bold">@(log.User?.FullName ?? "Sistem")</td>
+                            <td><span class="badge bg-secondary">@log.ActionType</span></td>
+                            <td>@log.Description</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

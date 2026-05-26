@@ -1,0 +1,271 @@
+@using System.Security.Claims
+@model List<project.Models.Order>
+@{
+    ViewData["Title"] = "Müşteri Paneli";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-speedometer2 text-primary"></i> Sipariş Panelim</h2>
+            <p class="text-muted mb-0">Geçmiş ve güncel siparişlerinizin durumunu buradan takip edebilirsiniz.</p>
+            
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Sipariş No</th>
+                            <th>Restoran</th>
+                            <th>Tarih</th>
+                            <th>Toplam Tutar</th>
+                            <th>Durum</th>
+                            <th class="text-center pe-4">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model == null || !Model.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-5">
+                                    <i class="bi bi-receipt fs-1"></i>
+                                    <h5 class="mt-2">Henüz bir siparişiniz bulunmuyor.</h5>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            foreach (var order in Model.OrderByDescending(o => o.OrderDate))
+                            {
+                                <tr>
+                                    <td class="ps-4 fw-bold text-secondary">#@order.OrderId</td>
+                                    <td class="fw-bold text-dark">@(order.Caterer?.FullName ?? "Restoran")</td>
+                                    <td class="text-muted">@order.OrderDate?.ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td class="fw-bold text-success">@order.TotalAmount.ToString("C2")</td>
+                                    <td>
+                                        <span class="badge @(order.Status == "Tamamlandı" ? "bg-success" : (order.Status == "Yola Çıktı" ? "bg-info" : "bg-warning text-dark")) rounded-pill px-3 py-2">
+                                            @order.Status
+                                        </span>
+                                    </td>
+                                    <td class="text-center pe-4">
+                                        <button type="button" class="btn btn-sm btn-primary fw-bold shadow-sm px-3" onclick="showCustomerOrderDetails(@order.OrderId)">
+                                            <i class="bi bi-list-nested me-1"></i> Detaylar
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="customerOrderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow" id="customerModalContent">
+        </div>
+    </div>
+</div>
+
+<div id="liveChatBox" class="d-none shadow-lg rounded-top" style="position: fixed; bottom: 0; right: 30px; width: 350px; z-index: 1060; background: #fff; border: 1px solid #ccc; border-bottom: none; display: flex; flex-direction: column;">
+    <div class="bg-primary text-white p-3 rounded-top d-flex justify-content-between align-items-center" style="cursor: pointer;" onclick="toggleChatBody()">
+        <div>
+            <i class="bi bi-chat-dots-fill me-2"></i>
+            <span id="chatCatererName" class="fw-bold">Restoran</span>
+            <small class="d-block text-white-50" style="font-size: 0.75rem;">Sipariş #<span id="chatOrderIdDisplay"></span></small>
+        </div>
+        <div>
+            <button type="button" class="btn-close btn-close-white" aria-label="Kapat" onclick="closeLiveChat(event)"></button>
+        </div>
+    </div>
+    
+    <div id="chatBodyWrapper">
+        <div id="chatMessagesArea" class="p-3" style="height: 350px; overflow-y: auto; background-color: #f8f9fa;">
+            <div class="text-center text-muted small mt-5">
+                <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div><br/>
+                Mesajlar yükleniyor...
+            </div>
+        </div>
+        
+        <div class="p-2 border-top bg-white">
+            <input type="hidden" id="chatCurrentOrderId" value="0" />
+            <div class="input-group">
+                <input type="text" id="chatMessageInput" class="form-control form-control-sm" placeholder="Mesajınızı yazın..." onkeypress="handleChatEnter(event)">
+                <button class="btn btn-primary btn-sm px-3 fw-bold" type="button" onclick="sendChatMessage()">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <script>
+        // 1. KULLANICI BİLGİSİ VE SIGNALR BAĞLANTISI
+        const currentUserId = "@(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)";
+        
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/chatHub")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.start().then(() => console.log("Müşteri sohbet hattına bağlandı.")).catch(err => console.error(err));
+
+        connection.on("ReceiveMessage", function (incomingOrderId, senderId, senderName, message, time) {
+            var activeOrderId = document.getElementById("chatCurrentOrderId").value;
+            if (activeOrderId === incomingOrderId.toString()) {
+                appendCustomerMessage(senderId.toString(), senderName, message, time);
+            }
+        });
+
+        // ==============================================================================
+        // 2. SİPARİŞ DETAYLARINI (MODAL) AÇMA FONKSİYONU (EKSİK OLAN BUYDU!)
+        // ==============================================================================
+        function showCustomerOrderDetails(orderId) {
+            const modalContent = document.getElementById("customerModalContent");
+            // Önce yükleniyor efekti gösterelim
+            modalContent.innerHTML = '<div class="p-5 text-center"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">Sipariş detayları yükleniyor...</p></div>';
+            
+            // Bootstrap Modalını Ekranda Göster
+            var myModal = new bootstrap.Modal(document.getElementById('customerOrderModal'));
+            myModal.show();
+
+            // Arka planda veriyi Controller'dan çek
+            fetch(`/Customer/GetOrderDetails?id=${orderId}`)
+                .then(response => {
+                    if (!response.ok) throw new Error("Ağ hatası");
+                    return response.text(); // Partial View HTML'ini alıyoruz
+                })
+                .then(html => {
+                    modalContent.innerHTML = html; // Modalin içine HTML'i bas
+                })
+                .catch(error => {
+                    modalContent.innerHTML = '<div class="p-5 text-center text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><br/>Detaylar yüklenirken bir hata oluştu.</div>';
+                    console.error(error);
+                });
+        }
+
+        // ==============================================================================
+        // 3. TEKİL YEMEK PUANLAMA (Partial View İçindeki Buton İçin)
+        // ==============================================================================
+        function rateItemAjax(orderId, itemId) {
+            const score = document.getElementById("scr_" + itemId).value;
+            
+            const formData = new URLSearchParams();
+            formData.append('ordId', orderId);
+            formData.append('itmId', itemId);
+            formData.append('scr', score);
+
+            fetch('/Customer/RateSingleItem', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData.toString()
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    // Puanlama başarılıysa menüyü kaldırıp sadece puanı göster
+                    const box = document.getElementById("rate_box_" + itemId);
+                    box.outerHTML = `<div class="badge bg-light text-dark border mt-1"><i class="bi bi-star-fill text-warning"></i> Sizin Puanınız: ${score}/5</div>`;
+                } else {
+                    alert(data.msg); // Hata varsa göster (Örn: Zaten puanladınız)
+                }
+            })
+            .catch(err => console.error("Puanlama hatası:", err));
+        }
+
+        // ==============================================================================
+        // 4. CANLI DESTEK PENCERESİNİ AÇMA VE İŞLEMLER
+        // ==============================================================================
+        function openLiveChat(orderId, catererName) {
+            document.getElementById("chatCurrentOrderId").value = orderId;
+            document.getElementById("chatOrderIdDisplay").innerText = orderId;
+            document.getElementById("chatCatererName").innerText = catererName;
+            
+            document.getElementById("liveChatBox").classList.remove("d-none");
+            document.getElementById("chatBodyWrapper").style.display = "block"; 
+            
+            const chatArea = document.getElementById("chatMessagesArea");
+            chatArea.innerHTML = "<div class='text-center mt-4'>Mesajlar Yükleniyor...</div>";
+
+            // SignalR odaya dahil ol
+            connection.invoke("JoinOrder", orderId.toString()).catch(err => console.error(err));
+
+            // Geçmişi getir
+            fetch(`/Chat/GetHistory?orderId=${orderId}`)
+                .then(res => res.json())
+                .then(data => {
+                    chatArea.innerHTML = ""; 
+                    if(data.length === 0) {
+                        chatArea.innerHTML = "<div class='text-center mt-4 text-muted small' id='emptyChatPlaceholder'>Henüz mesaj yok.</div>";
+                    } else {
+                        data.forEach(m => appendCustomerMessage(m.senderId.toString(), m.senderName, m.message, m.time));
+                    }
+                });
+        }
+
+        function appendCustomerMessage(senderIdStr, senderName, message, time) {
+            const isMe = senderIdStr === currentUserId;
+            const align = isMe ? "justify-content-end" : "justify-content-start";
+            const bg = isMe ? "bg-primary text-white" : "bg-white border text-dark";
+            const displayName = isMe ? "Siz" : senderName;
+
+            const emptyPlaceholder = document.getElementById("emptyChatPlaceholder");
+            if (emptyPlaceholder) emptyPlaceholder.remove();
+
+            const html = `
+                <div class="d-flex ${align} mb-2">
+                    <div class="${bg} px-3 py-2 rounded shadow-sm" style="max-width: 85%;">
+                        <div class="fw-bold" style="font-size: 0.75rem;">${displayName}</div>
+                        <div style="font-size: 0.9rem; word-break: break-word;">${message}</div>
+                        <div class="text-end mt-1" style="font-size: 0.65rem; opacity:0.8;">${time}</div>
+                    </div>
+                </div>`;
+                
+            const chatArea = document.getElementById("chatMessagesArea");
+            chatArea.insertAdjacentHTML('beforeend', html);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function sendChatMessage() {
+            const orderId = document.getElementById("chatCurrentOrderId").value;
+            const input = document.getElementById("chatMessageInput");
+            const msg = input.value.trim();
+
+            if (msg !== "" && orderId !== "0") {
+                connection.invoke("SendMessage", orderId.toString(), msg).catch(err => console.error(err));
+                input.value = "";
+                input.focus();
+            }
+        }
+
+        function handleChatEnter(e) {
+            if (e.key === 'Enter') sendChatMessage();
+        }
+
+        function toggleChatBody() {
+            const body = document.getElementById("chatBodyWrapper");
+            body.style.display = body.style.display === "none" ? "block" : "none";
+        }
+
+        function closeLiveChat(event) {
+            if(event) event.stopPropagation();
+            document.getElementById("liveChatBox").classList.add("d-none");
+        }
+    </script>
+}

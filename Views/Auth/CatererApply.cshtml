@@ -1,0 +1,117 @@
+@model project.ViewModels.RegisterViewModel
+@{
+    ViewData["Title"] = "Tedarikçi Başvurusu";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow border-0">
+                <div class="card-header bg-warning text-dark text-center py-3">
+                    <h4 class="mb-0 fw-bold"><i class="bi bi-shop"></i> Tedarikçi (Restoran) Başvuru Ekranı</h4>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="CatererApply" method="post" id="catererApplyForm">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                        
+                        <input type="hidden" asp-for="Latitude" id="Latitude" />
+                        <input type="hidden" asp-for="Longitude" id="Longitude" />
+
+                        <div class="mb-3">
+                            <label asp-for="FullName" class="form-label fw-bold">Restoran veya Firma Adı</label>
+                            <input asp-for="FullName" class="form-control" placeholder="Örn: Lezzet Dünyası" />
+                            <span asp-validation-for="FullName" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Email" class="form-label fw-bold">Kurumsal E-Posta</label>
+                            <input asp-for="Email" class="form-control" placeholder="ornek@mail.com" />
+                            <span asp-validation-for="Email" class="text-danger"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Password" class="form-label fw-bold">Şifre</label>
+                                <input asp-for="Password" class="form-control" placeholder="Şifrenizi girin" />
+                                <span asp-validation-for="Password" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="ConfirmPassword" class="form-label fw-bold">Şifre Tekrar</label>
+                                <input asp-for="ConfirmPassword" class="form-control" placeholder="Şifreyi onaylayın" />
+                                <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 p-3 border border-warning rounded bg-light">
+                            <label class="form-label fw-bold"><i class="bi bi-geo-alt-fill text-danger"></i> İşletme Konumu (Zorunlu)</label>
+                            <div class="input-group mb-2">
+                                <button type="button" class="btn btn-outline-danger fw-bold" onclick="getLocation()" id="btnLocation">
+                                    <i class="bi bi-crosshair"></i> Konumumu Bul
+                                </button>
+                                <input type="text" class="form-control" id="LocationStatus" placeholder="Lütfen yandaki butona tıklayın..." readonly required>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                <i class="bi bi-info-circle"></i> Müşterilerin sizi ana sayfadaki haritada görebilmesi ve 5 km mesafe filtrelemesine girebilmeniz için işletmenizin bulunduğu konumda bu işlemi onaylayınız.
+                            </small>
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-warning fw-bold fs-5 text-dark" id="btnSubmit">
+                                <i class="bi bi-send-check"></i> Başvuruyu Gönder
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer bg-white text-center py-3">
+                    Hesabınız zaten onaylandı mı? <br/>
+                    <a asp-action="Login" class="text-primary fw-bold text-decoration-none">Giriş Yapın</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        function getLocation() {
+            const statusInput = document.getElementById('LocationStatus');
+            const btnLocation = document.getElementById('btnLocation');
+
+            statusInput.value = "Konum aranıyor, lütfen tarayıcıdan izin verin...";
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        // Nokta(.) veya virgül(,) karmaşasını önlemek için güvenli çeviri
+                        document.getElementById('Latitude').value = position.coords.latitude.toString().replace(',', '.');
+                        document.getElementById('Longitude').value = position.coords.longitude.toString().replace(',', '.');
+                        
+                        statusInput.value = "İşletme konumu başarıyla alındı!";
+                        statusInput.classList.remove('is-invalid');
+                        statusInput.classList.add('is-valid');
+                        btnLocation.classList.replace('btn-outline-danger', 'btn-success');
+                    }, 
+                    function (error) {
+                        statusInput.value = "Konum izni reddedildi!";
+                        statusInput.classList.add('is-invalid');
+                        alert("Başvuru yapabilmek için tarayıcınızın adres çubuğundaki kilit simgesine tıklayıp konum izni vermeniz gerekmektedir.");
+                    }
+                );
+            } else {
+                statusInput.value = "Tarayıcınız konum özelliğini desteklemiyor.";
+            }
+        }
+        
+        // Kullanıcı konum almadan formu göndermesin diye önlem
+        document.getElementById('catererApplyForm').addEventListener('submit', function(e){
+            var lat = document.getElementById('Latitude').value;
+            if(!lat) {
+                e.preventDefault();
+                alert("Lütfen önce 'Konumumu Bul' butonuna tıklayarak restoran konumunuzu sisteme tanıtın.");
+            }
+        });
+    </script>
+}
